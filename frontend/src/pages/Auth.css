@@ -1,0 +1,162 @@
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+  background:
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(26, 122, 109, 0.14), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 0% 100%, rgba(255, 59, 31, 0.1), transparent 50%),
+    var(--paper);
+}
+
+.auth-loading {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.auth-card {
+  width: min(100%, 28rem);
+  padding: 2rem 1.75rem;
+  background: color-mix(in srgb, var(--white) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mist) 90%, transparent);
+  border-radius: 0.45rem;
+}
+
+.auth-brand {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.auth-brand-logo,
+.auth-card .brand-logo-link {
+  margin-bottom: 1.25rem;
+}
+
+.auth-card h1 {
+  margin: 0 0 0.4rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.75rem;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.auth-subtitle {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.form-banner {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--signal) 12%, white);
+  color: var(--signal-deep);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.form-banner-success {
+  background: color-mix(in srgb, var(--teal) 14%, white);
+  color: var(--teal);
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.field input {
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--mist);
+  border-radius: 0.35rem;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.field input:focus {
+  border-color: color-mix(in srgb, var(--teal) 70%, var(--mist));
+}
+
+.field em {
+  font-style: normal;
+  font-size: 0.8rem;
+  color: var(--signal-deep);
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.85rem 1.1rem;
+}
+
+.btn-block:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.auth-switch {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.auth-switch a {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.welcome-shell {
+  text-align: center;
+}
+
+.welcome-box {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+}
+
+.welcome-brand {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+  color: var(--teal);
+}
+
+.welcome-box h1 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}

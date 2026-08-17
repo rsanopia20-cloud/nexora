@@ -1,0 +1,190 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #0b1320;
+  --color-ink-soft: #162033;
+  --color-paper: #f3f5f8;
+  --color-mist: #dfe6ef;
+  --color-signal: #ff3b1f;
+  --color-signal-deep: #e02f16;
+  --color-teal: #1a7a6d;
+  --color-muted: #5c6b7e;
+  --font-sans: 'DM Sans', sans-serif;
+  /* Syne looked heavy on small screens; keep typography consistent with DM Sans. */
+  --font-display: 'DM Sans', sans-serif;
+  --spacing-header: 5rem;
+}
+
+/* Legacy CSS variable aliases used by Admin / Auth / Legal stylesheets */
+:root {
+  --ink: #0b1320;
+  --ink-soft: #162033;
+  --paper: #f3f5f8;
+  --mist: #dfe6ef;
+  --signal: #ff3b1f;
+  --signal-deep: #e02f16;
+  --teal: #1a7a6d;
+  --text: #0b1320;
+  --muted: #5c6b7e;
+  --white: #ffffff;
+  --header-h: 5rem;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-padding-top: var(--spacing-header);
+  }
+
+  @media (max-width: 639px) {
+    html {
+      scroll-padding-top: 4.25rem;
+    }
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body.nav-open {
+    overflow: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+}
+
+/* Shared brand logo sizes (used across pages) */
+.brand-logo-link {
+  @apply inline-flex items-center leading-none;
+}
+
+.brand-logo {
+  @apply block object-contain rounded;
+}
+
+.brand-logo--sm {
+  @apply h-[2.35rem] w-auto;
+}
+
+.brand-logo--md {
+  @apply h-10 w-auto;
+}
+
+.brand-logo--lg {
+  height: clamp(4.5rem, 14vw, 7.5rem);
+  @apply w-auto max-w-[min(100%,22rem)];
+}
+
+@keyframes hero-zoom {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-hero-zoom {
+  animation: hero-zoom 1.4s ease both;
+}
+
+.animate-rise {
+  animation: rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@layer utilities {
+  .page-x {
+    padding-inline: clamp(1rem, 4vw, 2.75rem);
+  }
+
+  .section-y {
+    padding-block: clamp(2.75rem, 8vh, 6rem);
+  }
+
+  .section-y-lg {
+    padding-block: clamp(3.5rem, 10vh, 6.5rem);
+  }
+
+  .hero-shell {
+    min-height: min(76vh, 36rem);
+    padding-top: calc(var(--spacing-header) + 1.25rem);
+    padding-bottom: clamp(2rem, 6vh, 4rem);
+    padding-inline: clamp(1rem, 4vw, 3.5rem);
+  }
+
+  @media (min-width: 640px) {
+    .hero-shell {
+      min-height: min(88vh, 46rem);
+      padding-top: calc(var(--spacing-header) + 2rem);
+      padding-bottom: clamp(2.75rem, 7vh, 4rem);
+    }
+  }
+
+  .btn-stack {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .btn-stack {
+      width: auto;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+  }
+
+  .btn-stack > * {
+    width: 100%;
+  }
+
+  @media (min-width: 640px) {
+    .btn-stack > * {
+      width: auto;
+    }
+  }
+
+  .pt-header {
+    padding-top: var(--spacing-header);
+  }
+
+  .scroll-anchor {
+    scroll-margin-top: calc(var(--spacing-header) + 0.75rem);
+  }
+}
