@@ -6,10 +6,11 @@ import {
   getLinkStats,
   getUserHistory,
 } from '../controllers/analyticsController.js';
+import { requireAdmin } from '../middleware/requireAdmin.js';
 
 const router = Router();
 
-// TODO: Add admin-only auth middleware before these handlers go to production.
+router.use(requireAdmin);
 
 router.get('/summary', getDashboardSummary);
 router.get('/links', getLinkStats);

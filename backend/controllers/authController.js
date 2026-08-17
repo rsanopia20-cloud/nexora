@@ -48,19 +48,13 @@ export async function signup(req, res) {
   try {
     const { fullName, mobile, email, password } = req.body;
 
-    const existing = await User.findOne({
-      $or: [{ email: email.toLowerCase() }, { mobile }],
-    });
+    const existing = await User.findOne({ email: email.toLowerCase() });
 
     if (existing) {
-      const field = existing.email === email.toLowerCase() ? 'email' : 'mobile';
       return res.status(409).json({
         success: false,
-        message:
-          field === 'email'
-            ? 'An account with this email already exists'
-            : 'An account with this mobile number already exists',
-        errors: [{ field, message: `This ${field} is already registered` }],
+        message: 'An account with this email already exists',
+        errors: [{ field: 'email', message: 'This email is already registered' }],
       });
     }
 
@@ -71,7 +65,7 @@ export async function signup(req, res) {
       password,
     });
 
-    const token = signToken(user._id);
+    const token = signToken(user);
     setAuthCookie(res, token);
 
     // Tracking/WhatsApp link generation must never fail signup —
@@ -136,7 +130,7 @@ export async function login(req, res) {
       });
     }
 
-    const token = signToken(user._id);
+    const token = signToken(user);
     setAuthCookie(res, token);
 
     return res.json({

@@ -6,10 +6,11 @@ import {
   permanentDeleteLink,
   updateLink,
 } from '../controllers/linkController.js';
+import { requireAdmin } from '../middleware/requireAdmin.js';
 
 const router = Router();
 
-// TODO: Add admin-only auth middleware before these handlers go to production.
+router.use(requireAdmin);
 
 router.post('/', createLink);
 router.get('/', getAllLinks);

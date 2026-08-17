@@ -10,6 +10,7 @@ import trackingRoutes from './routes/trackingRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import userLinkRoutes from './routes/userLinkRoutes.js';
+import adminAuthRoutes from './routes/adminAuthRoutes.js';
 
 dotenv.config();
 
@@ -37,19 +38,39 @@ if (!process.env.SENDER_EMAIL) {
   );
 }
 
+if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
+  console.warn(
+    'Warning: ADMIN_EMAIL or ADMIN_PASSWORD is not set in .env. Admin login will not work until they are added.'
+  );
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(helmet());
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   })
 );
 app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
+
+const ready = start();
+app.use(async (_req, _res, next) => {
+  await ready;
+  next();
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Nexora API is running' });
@@ -58,7 +79,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/links', userLinkRoutes);
-// TODO: Protect with admin-only auth middleware when admin roles are added.
+app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin/links', linkRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
 // Public tracking redirects — must NOT sit behind JWT auth
@@ -76,13 +97,18 @@ app.use((err, _req, res, _next) => {
 async function start() {
   try {
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+    if (!process.env.VERCEL) {
+      app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    }
   } catch (error) {
     console.error('Failed to start server:', error.message);
-    process.exit(1);
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
+    throw error;
   }
 }
 
-start();
+export default app;

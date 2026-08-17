@@ -110,6 +110,17 @@
   width: 100%;
   margin-top: 0.35rem;
   padding: 0.85rem 1.1rem;
+  border: none;
+  border-radius: 0.35rem;
+  background: var(--signal);
+  color: var(--white);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-block:hover:not(:disabled) {
+  background: var(--signal-deep);
 }
 
 .btn-block:disabled {

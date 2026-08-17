@@ -1,8 +1,9 @@
-/* TODO: Gate /admin/* behind admin-only auth before production use. */
+/* Admin session lives in a separate cookie from user JWT. */
 
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import BrandLogo from './BrandLogo'
+import { useAdminAuth } from '../context/AdminAuthContext'
 import '../pages/Admin.css'
 
 const NAV_ITEMS = [
@@ -14,8 +15,10 @@ const NAV_ITEMS = [
 
 export default function AdminShell({ title, children }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const path = location.pathname
   const [menuOpen, setMenuOpen] = useState(false)
+  const { logout } = useAdminAuth()
 
   useEffect(() => {
     document.body.classList.toggle('nav-open', menuOpen)
@@ -25,6 +28,12 @@ export default function AdminShell({ title, children }) {
   useEffect(() => {
     setMenuOpen(false)
   }, [location.pathname])
+
+  async function handleLogout() {
+    setMenuOpen(false)
+    await logout()
+    navigate('/admin', { replace: true })
+  }
 
   return (
     <div className="admin-page">
@@ -57,6 +66,9 @@ export default function AdminShell({ title, children }) {
               {item.label}
             </Link>
           ))}
+          <button type="button" className="admin-logout-btn" onClick={handleLogout}>
+            Log out
+          </button>
         </nav>
       </header>
       <main className="admin-main">{children}</main>

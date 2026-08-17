@@ -106,6 +106,36 @@
   border-bottom: none;
 }
 
+.admin-logout-btn {
+  margin-top: 0.35rem;
+  border: 1px solid var(--mist);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-align: left;
+  padding: 0.85rem 0.15rem;
+  cursor: pointer;
+}
+
+.admin-logout-btn:hover {
+  color: var(--signal-deep);
+}
+
+@media (min-width: 900px) {
+  .admin-logout-btn {
+    margin-top: 0;
+    padding: 0.45rem 0.8rem;
+    border-radius: 0.35rem;
+    text-align: center;
+  }
+
+  .admin-logout-btn:hover {
+    background: color-mix(in srgb, var(--signal) 10%, white);
+  }
+}
+
 .admin-nav a:hover,
 .admin-nav a.is-active {
   background: color-mix(in srgb, var(--teal) 10%, white);
