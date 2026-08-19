@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiRequest } from '../api/client'
+import ConfirmDialog from '../components/ConfirmDialog'
 import DashboardFooter from '../components/DashboardFooter'
 import DashboardHeader from '../components/DashboardHeader'
 import { useAuth } from '../context/AuthContext'
+import { consumePendingWhatsApp } from '../utils/whatsappHandoff'
 
 const eyebrow = 'mb-2 text-[0.78rem] font-bold uppercase tracking-[0.14em] text-teal'
 
@@ -58,6 +60,21 @@ export default function Dashboard() {
   const [error, setError] = useState('')
   const [clickingId, setClickingId] = useState(null)
   const [linkMessages, setLinkMessages] = useState({})
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
+  const [whatsappHandoff, setWhatsappHandoff] = useState(false)
+
+  useEffect(() => {
+    const waLink = consumePendingWhatsApp()
+    if (!waLink) return undefined
+
+    setWhatsappHandoff(true)
+    const timer = window.setTimeout(() => {
+      window.location.assign(waLink)
+    }, 500)
+
+    return () => window.clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -91,9 +108,19 @@ export default function Dashboard() {
     }
   }, [links])
 
-  async function handleLogout() {
-    await logout()
-    navigate('/', { replace: true })
+  function requestLogout() {
+    setLogoutOpen(true)
+  }
+
+  async function confirmLogout() {
+    setLogoutBusy(true)
+    try {
+      await logout()
+      navigate('/', { replace: true })
+    } finally {
+      setLogoutBusy(false)
+      setLogoutOpen(false)
+    }
   }
 
   async function handleLinkClick(link) {
@@ -148,9 +175,16 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_80%_50%_at_100%_0%,rgba(26,122,109,0.1),transparent_55%),radial-gradient(ellipse_60%_40%_at_0%_100%,rgba(255,59,31,0.06),transparent_50%),var(--color-paper)] text-ink">
-      <DashboardHeader user={user} onLogout={handleLogout} />
+      <DashboardHeader user={user} onLogout={requestLogout} />
 
       <main className="pt-[4.25rem] sm:pt-header">
+        {whatsappHandoff ? (
+          <div className="page-x pt-4">
+            <p className="mx-auto mb-0 max-w-[1160px] rounded-[0.4rem] bg-teal/12 px-4 py-3 text-[0.92rem] font-semibold text-teal">
+              Account created. Opening WhatsApp with your offer links...
+            </p>
+          </div>
+        ) : null}
         {/* Overview */}
         <section
           id="overview"
@@ -514,7 +548,19 @@ export default function Dashboard() {
         </section>
       </main>
 
-      <DashboardFooter onLogout={handleLogout} />
+      <DashboardFooter onLogout={requestLogout} />
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Log out?"
+        message="Are you sure you want to log out of your account?"
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        busy={logoutBusy}
+        onConfirm={confirmLogout}
+        onCancel={() => {
+          if (!logoutBusy) setLogoutOpen(false)
+        }}
+      />
     </div>
   )
 }

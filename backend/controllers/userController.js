@@ -1,11 +1,8 @@
-import Link from '../models/Link.js';
+import Link, { LINK_SORT } from '../models/Link.js';
 import LinkUsage from '../models/LinkUsage.js';
 import ClickEvent from '../models/ClickEvent.js';
 import { getOrCreateTrackingCode } from '../utils/shortCode.js';
-
-function getBaseUrl() {
-  return (process.env.BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
-}
+import { buildShortTrackingUrl } from '../utils/publicUrl.js';
 
 /**
  * GET /api/user/links
@@ -15,13 +12,12 @@ function getBaseUrl() {
 export async function getMyLinks(req, res) {
   try {
     const userId = req.user._id;
-    const activeLinks = await Link.find({ active: true }).sort({ createdAt: 1 });
-    const baseUrl = getBaseUrl();
+    const activeLinks = await Link.find({ active: true }).sort(LINK_SORT);
 
     const links = await Promise.all(
       activeLinks.map(async (link) => {
         const code = await getOrCreateTrackingCode(link._id, userId);
-        const trackingUrl = `${baseUrl}/l/${code}`;
+        const trackingUrl = buildShortTrackingUrl(code);
 
         const [usage, attempts] = await Promise.all([
           LinkUsage.findOne({ linkId: link._id, userId }).lean(),

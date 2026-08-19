@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import TrackingCode from '../models/TrackingCode.js';
+import { buildShortTrackingUrl } from './publicUrl.js';
 
 // Unambiguous alphanumeric (no 0/O, 1/l/I)
 const CHARSET = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -16,10 +17,6 @@ export function generateShortCode() {
     code += CHARSET[bytes[i] % CHARSET.length];
   }
   return code;
-}
-
-function getBaseUrl() {
-  return (process.env.BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
 }
 
 /**
@@ -63,9 +60,9 @@ export async function getOrCreateTrackingCode(linkId, userId) {
 }
 
 /**
- * Builds a short tracking URL: `${BASE_URL}/l/${code}`
+ * Builds a short tracking URL: `${publicBase}/l/${code}`
  */
 export async function generateShortTrackingUrl(linkId, userId) {
   const code = await getOrCreateTrackingCode(linkId, userId);
-  return `${getBaseUrl()}/l/${code}`;
+  return buildShortTrackingUrl(code);
 }

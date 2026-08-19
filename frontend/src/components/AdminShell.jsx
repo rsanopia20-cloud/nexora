@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import BrandLogo from './BrandLogo'
+import ConfirmDialog from './ConfirmDialog'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import '../pages/Admin.css'
 
@@ -18,6 +19,8 @@ export default function AdminShell({ title, children }) {
   const navigate = useNavigate()
   const path = location.pathname
   const [menuOpen, setMenuOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
   const { logout } = useAdminAuth()
 
   useEffect(() => {
@@ -29,10 +32,20 @@ export default function AdminShell({ title, children }) {
     setMenuOpen(false)
   }, [location.pathname])
 
-  async function handleLogout() {
+  function requestLogout() {
     setMenuOpen(false)
-    await logout()
-    navigate('/admin', { replace: true })
+    setLogoutOpen(true)
+  }
+
+  async function confirmLogout() {
+    setLogoutBusy(true)
+    try {
+      await logout()
+      navigate('/admin', { replace: true })
+    } finally {
+      setLogoutBusy(false)
+      setLogoutOpen(false)
+    }
   }
 
   return (
@@ -66,12 +79,24 @@ export default function AdminShell({ title, children }) {
               {item.label}
             </Link>
           ))}
-          <button type="button" className="admin-logout-btn" onClick={handleLogout}>
+          <button type="button" className="admin-logout-btn" onClick={requestLogout}>
             Log out
           </button>
         </nav>
       </header>
       <main className="admin-main">{children}</main>
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Log out?"
+        message="Are you sure you want to log out of the admin panel?"
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        busy={logoutBusy}
+        onConfirm={confirmLogout}
+        onCancel={() => {
+          if (!logoutBusy) setLogoutOpen(false)
+        }}
+      />
     </div>
   )
 }

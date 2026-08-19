@@ -26,6 +26,9 @@ export default function AdminLinks() {
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [filter, setFilter] = useState('all') // all | active | inactive
+  const [dragId, setDragId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+  const [canDrag, setCanDrag] = useState(false)
 
   async function loadLinks() {
     setLoading(true)
@@ -42,6 +45,14 @@ export default function AdminLinks() {
 
   useEffect(() => {
     loadLinks()
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 860px)')
+    const sync = () => setCanDrag(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
   }, [])
 
   const visibleLinks = useMemo(() => {
@@ -94,6 +105,66 @@ export default function AdminLinks() {
     }
   }
 
+  function mergeVisibleOrder(nextVisible) {
+    if (filter === 'all') return nextVisible
+    const queue = [...nextVisible]
+    return links.map((link) => {
+      const inView = filter === 'active' ? link.active : !link.active
+      return inView ? queue.shift() : link
+    })
+  }
+
+  async function persistOrder(nextLinks) {
+    const previous = links
+    setLinks(nextLinks)
+    setBusyId('reorder')
+    setError('')
+    setSuccess('')
+    try {
+      await apiRequest('/api/admin/links/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({
+          orderedIds: nextLinks.map((link) => link.linkId),
+        }),
+      })
+      setSuccess('Link order saved. New WhatsApp messages will use this order.')
+    } catch (err) {
+      setLinks(previous)
+      setError(err.message || 'Failed to save link order')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  function moveLink(linkId, direction) {
+    if (busyId) return
+    const list = [...visibleLinks]
+    const index = list.findIndex((link) => link.linkId === linkId)
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= list.length) return
+    const swapped = [...list]
+    ;[swapped[index], swapped[target]] = [swapped[target], swapped[index]]
+    persistOrder(mergeVisibleOrder(swapped))
+  }
+
+  function handleDrop(targetId) {
+    if (!dragId || dragId === targetId || busyId) {
+      setDragId(null)
+      setDragOverId(null)
+      return
+    }
+    const list = [...visibleLinks]
+    const from = list.findIndex((link) => link.linkId === dragId)
+    const to = list.findIndex((link) => link.linkId === targetId)
+    setDragId(null)
+    setDragOverId(null)
+    if (from < 0 || to < 0) return
+    const next = [...list]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    persistOrder(mergeVisibleOrder(next))
+  }
+
   async function removeLink(link) {
     const ok = window.confirm(
       `Remove “${link.linkName}”?\n\nIt will be deactivated and hidden from new signups. Click history is kept for analytics.`
@@ -120,7 +191,10 @@ export default function AdminLinks() {
     <AdminShell title="Manage Links">
       <div className="admin-page-intro">
         <h1>Campaign links</h1>
-        <p>Add new destination URLs, activate/deactivate them, or remove them from the active pool.</p>
+        <p>
+          Add, activate, or remove destination URLs. Use the arrows to set the
+          order — that same order is used in WhatsApp messages.
+        </p>
       </div>
 
       <div className="admin-panel">
@@ -196,6 +270,7 @@ export default function AdminLinks() {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th>Order</th>
                   <th>Name</th>
                   <th>Destination</th>
                   <th>Status</th>
@@ -205,11 +280,58 @@ export default function AdminLinks() {
                 </tr>
               </thead>
               <tbody>
-                    {visibleLinks.map((link) => (
+                    {visibleLinks.map((link, index) => (
                   <tr
                     key={link.linkId}
-                    className={link.active ? undefined : 'admin-muted-row'}
+                    draggable={canDrag && !busyId}
+                    onDragStart={() => setDragId(link.linkId)}
+                    onDragOver={(event) => {
+                      event.preventDefault()
+                      setDragOverId(link.linkId)
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      handleDrop(link.linkId)
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null)
+                      setDragOverId(null)
+                    }}
+                    className={[
+                      link.active ? '' : 'admin-muted-row',
+                      dragId === link.linkId ? 'is-dragging' : '',
+                      dragOverId === link.linkId && dragId !== link.linkId
+                        ? 'is-drag-over'
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
                   >
+                    <td className="admin-order-cell" data-label="Order">
+                      <div
+                        className="admin-order-controls"
+                        onPointerDown={(event) => event.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          className="admin-order-btn"
+                          aria-label={`Move ${link.linkName} up`}
+                          disabled={busyId != null || index === 0}
+                          onClick={() => moveLink(link.linkId, -1)}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-order-btn"
+                          aria-label={`Move ${link.linkName} down`}
+                          disabled={busyId != null || index === visibleLinks.length - 1}
+                          onClick={() => moveLink(link.linkId, 1)}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    </td>
                     <td className="admin-cell-name" data-label="Name">
                       {link.linkName}
                     </td>

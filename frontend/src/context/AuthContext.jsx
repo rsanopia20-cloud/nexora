@@ -28,6 +28,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     hydrate()
+
+    function onPageShow(event) {
+      if (event.persisted) hydrate()
+    }
+
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
   }, [hydrate])
 
   const signup = useCallback(async (payload) => {

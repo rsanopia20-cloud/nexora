@@ -4,6 +4,7 @@ import {
   deleteLink,
   getAllLinks,
   permanentDeleteLink,
+  reorderLinks,
   updateLink,
 } from '../controllers/linkController.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
@@ -14,6 +15,7 @@ router.use(requireAdmin);
 
 router.post('/', createLink);
 router.get('/', getAllLinks);
+router.put('/reorder', reorderLinks);
 router.put('/:id', updateLink);
 router.delete('/:id/permanent', permanentDeleteLink);
 router.delete('/:id', deleteLink);

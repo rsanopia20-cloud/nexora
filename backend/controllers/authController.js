@@ -1,5 +1,5 @@
 import User from '../models/User.js';
-import Link from '../models/Link.js';
+import Link, { LINK_SORT } from '../models/Link.js';
 import { clearAuthCookie, setAuthCookie, signToken } from '../utils/token.js';
 import { generateShortTrackingUrl } from '../utils/shortCode.js';
 import { sendWelcomeEmail } from '../utils/sendWelcomeEmail.js';
@@ -20,21 +20,24 @@ function authPayload(user, token) {
 
 async function buildWhatsAppLink(user) {
   // Always load from admin Link collection (active only) — never a hardcoded list.
-  const activeLinks = await Link.find({ active: true }).sort({ createdAt: 1 });
+  const activeLinks = await Link.find({ active: true }).sort(LINK_SORT);
 
   if (!activeLinks.length) {
     return null;
   }
 
-  const lines = await Promise.all(
+  const firstName = String(user.fullName || '').trim().split(/\s+/)[0];
+  const intro = firstName ? `Hi ${firstName},` : 'Hi,';
+
+  const blocks = await Promise.all(
     activeLinks.map(async (link) => {
       // Short URL: /l/{code} — maps back to this admin link + user for tracking
       const trackingUrl = await generateShortTrackingUrl(link._id, user._id);
-      return `${link.name}: ${trackingUrl}`;
+      return `${link.name}\n${trackingUrl}`;
     })
   );
 
-  const message = lines.join('\n');
+  const message = [intro, ...blocks].join('\n\n');
   const number = process.env.BUSINESS_WHATSAPP_NUMBER;
 
   if (!number) {

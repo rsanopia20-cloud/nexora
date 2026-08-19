@@ -20,9 +20,9 @@ if (!process.env.TRACKING_SECRET) {
   );
 }
 
-if (!process.env.BASE_URL) {
+if (!process.env.TRACKING_BASE_URL && !process.env.BASE_URL) {
   console.warn(
-    'Warning: BASE_URL is not set in .env. Falling back to http://localhost:5000 for tracking URLs.'
+    'Warning: TRACKING_BASE_URL is not set. Tracking links will fall back to BASE_URL or localhost.'
   );
 }
 
@@ -70,6 +70,14 @@ const ready = start();
 app.use(async (_req, _res, next) => {
   await ready;
   next();
+});
+
+app.get('/', (_req, res) => {
+  res.json({
+    success: true,
+    message: 'Nexora API is running',
+    health: '/api/health',
+  });
 });
 
 app.get('/api/health', (_req, res) => {

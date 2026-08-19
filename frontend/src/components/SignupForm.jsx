@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { stashPendingWhatsApp } from '../utils/whatsappHandoff'
 import PasswordField from './PasswordField'
 import './AuthForms.css'
 
@@ -15,13 +16,11 @@ const initialForm = {
 export default function SignupForm({ onSwitchToLogin }) {
   const { signup } = useAuth()
   const navigate = useNavigate()
-  const skipWelcomeRedirect = useRef(false)
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [leavingForWhatsApp, setLeavingForWhatsApp] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   function updateField(event) {
@@ -83,17 +82,7 @@ export default function SignupForm({ onSwitchToLogin }) {
         confirmPassword: form.confirmPassword,
       })
 
-      if (data.waLink) {
-        skipWelcomeRedirect.current = true
-        setLeavingForWhatsApp(true)
-        setStatusMessage('Account created! Redirecting to WhatsApp...')
-
-        // wa.me opens WhatsApp Web/desktop on desktop, app on mobile
-        await new Promise((resolve) => setTimeout(resolve, 800))
-        window.location.href = data.waLink
-        return
-      }
-
+      stashPendingWhatsApp(data.waLink)
       navigate('/dashboard', { replace: true })
     } catch (error) {
       const fieldErrors = {}
@@ -123,7 +112,7 @@ export default function SignupForm({ onSwitchToLogin }) {
             value={form.fullName}
             onChange={updateField}
             placeholder="Your full name"
-            disabled={submitting || leavingForWhatsApp}
+            disabled={submitting}
           />
           {errors.fullName ? <em>{errors.fullName}</em> : null}
         </label>
@@ -139,7 +128,7 @@ export default function SignupForm({ onSwitchToLogin }) {
             onChange={updateField}
             placeholder="10-digit mobile"
             maxLength={10}
-            disabled={submitting || leavingForWhatsApp}
+            disabled={submitting}
           />
           {errors.mobile ? <em>{errors.mobile}</em> : null}
         </label>
@@ -153,7 +142,7 @@ export default function SignupForm({ onSwitchToLogin }) {
             value={form.email}
             onChange={updateField}
             placeholder="you@example.com"
-            disabled={submitting || leavingForWhatsApp}
+            disabled={submitting}
           />
           {errors.email ? <em>{errors.email}</em> : null}
         </label>
@@ -165,7 +154,7 @@ export default function SignupForm({ onSwitchToLogin }) {
           onChange={updateField}
           placeholder="Min. 8 characters"
           autoComplete="new-password"
-          disabled={submitting || leavingForWhatsApp}
+          disabled={submitting}
           error={errors.password}
         />
 
@@ -176,7 +165,7 @@ export default function SignupForm({ onSwitchToLogin }) {
           onChange={updateField}
           placeholder="Re-enter password"
           autoComplete="new-password"
-          disabled={submitting || leavingForWhatsApp}
+          disabled={submitting}
           error={errors.confirmPassword}
         />
 
@@ -188,7 +177,7 @@ export default function SignupForm({ onSwitchToLogin }) {
               setAcceptedTerms(event.target.checked)
               setErrors((prev) => ({ ...prev, acceptedTerms: '' }))
             }}
-            disabled={submitting || leavingForWhatsApp}
+            disabled={submitting}
           />
           <span>
             I accept the{' '}
@@ -202,13 +191,9 @@ export default function SignupForm({ onSwitchToLogin }) {
         <button
           className="btn btn-solid btn-block"
           type="submit"
-          disabled={!acceptedTerms || submitting || leavingForWhatsApp}
+          disabled={!acceptedTerms || submitting}
         >
-          {leavingForWhatsApp
-            ? 'Redirecting to WhatsApp...'
-            : submitting
-              ? 'Creating your account...'
-              : 'Sign up'}
+          {submitting ? 'Creating your account...' : 'Sign up'}
         </button>
       </form>
 

@@ -23,6 +23,11 @@ const linkSchema = new mongoose.Schema(
       default: true,
       index: true, // Fast lookup of the active link pool when assigning links to users
     },
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -39,5 +44,7 @@ const linkSchema = new mongoose.Schema(
 );
 
 const Link = mongoose.model('Link', linkSchema);
+
+export const LINK_SORT = { sortOrder: 1, createdAt: 1 };
 
 export default Link;

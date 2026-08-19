@@ -1,9 +1,50 @@
 import mongoose from 'mongoose';
-import Link from '../models/Link.js';
+import ExcelJS from 'exceljs';
+import Link, { LINK_SORT } from '../models/Link.js';
 import User from '../models/User.js';
 import ClickEvent from '../models/ClickEvent.js';
 import LinkUsage from '../models/LinkUsage.js';
 import TrackingCode from '../models/TrackingCode.js';
+import { buildShortTrackingUrl } from '../utils/publicUrl.js';
+
+const IST_TZ = 'Asia/Kolkata';
+
+const istDateTimeFormatter = new Intl.DateTimeFormat('en-IN', {
+  timeZone: IST_TZ,
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+});
+
+const istFileDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: IST_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+function formatIstDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${istDateTimeFormatter.format(date)} IST`;
+}
+
+/** Treat yyyy-mm-dd filters as Indian calendar days (UTC+05:30). */
+function parseIstDateBoundary(input, endOfDay = false) {
+  if (!input) return null;
+  const text = String(input).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const iso = endOfDay
+    ? `${text}T23:59:59.999+05:30`
+    : `${text}T00:00:00.000+05:30`;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 /**
  * GET /api/admin/analytics/links
@@ -15,7 +56,7 @@ import TrackingCode from '../models/TrackingCode.js';
  */
 export async function getLinkStats(_req, res) {
   try {
-    const links = await Link.find().sort({ createdAt: 1 });
+    const links = await Link.find().sort(LINK_SORT);
 
     const stats = await Promise.all(
       links.map(async (link) => {
@@ -29,6 +70,7 @@ export async function getLinkStats(_req, res) {
           linkName: link.name,
           destination: link.destination,
           active: link.active,
+          sortOrder: link.sortOrder ?? 0,
           totalAttempts,
           uniqueValidUses,
         };
@@ -191,8 +233,6 @@ export async function getUserHistory(req, res) {
       });
     }
 
-    const baseUrl = (process.env.BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
-
     const [codes, clickLinkIds, totalAttempts, totalValidUses] = await Promise.all([
       TrackingCode.find({ userId }).lean(),
       ClickEvent.distinct('linkId', { userId }),
@@ -208,7 +248,7 @@ export async function getUserHistory(req, res) {
     const history = await Promise.all(
       [...linkIdSet].map(async (linkId) => {
         const [link, attempts, usage, codeDoc] = await Promise.all([
-          Link.findById(linkId).select('name destination active'),
+          Link.findById(linkId).select('name destination active sortOrder'),
           ClickEvent.countDocuments({ linkId, userId }),
           LinkUsage.findOne({ linkId, userId }).select('usedAt').lean(),
           TrackingCode.findOne({ linkId, userId }).select('code').lean(),
@@ -219,18 +259,17 @@ export async function getUserHistory(req, res) {
           linkName: link?.name || null,
           destination: link?.destination || null,
           linkActive: link?.active ?? null,
+          sortOrder: link?.sortOrder ?? Number.MAX_SAFE_INTEGER,
           attempts,
           wasUsed: Boolean(usage),
           usedAt: usage?.usedAt || null,
           code: codeDoc?.code || null,
-          trackingUrl: codeDoc?.code ? `${baseUrl}/l/${codeDoc.code}` : null,
+          trackingUrl: buildShortTrackingUrl(codeDoc?.code),
         };
       })
     );
 
-    history.sort((a, b) =>
-      String(a.linkName || '').localeCompare(String(b.linkName || ''))
-    );
+    history.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
     return res.json({
       success: true,
@@ -303,6 +342,144 @@ export async function getDashboardSummary(_req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to fetch dashboard summary',
+    });
+  }
+}
+
+/**
+ * GET /api/admin/analytics/export
+ * Export click-attempt report as Excel (.xlsx), filterable by:
+ * - userId (optional)
+ * - linkId (optional)
+ * - fromDate (optional, yyyy-mm-dd, Indian calendar day)
+ * - toDate (optional, yyyy-mm-dd, Indian calendar day)
+ */
+export async function exportAnalyticsReport(req, res) {
+  try {
+    const { userId, linkId, fromDate, toDate } = req.query;
+
+    if (userId && !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid userId filter',
+      });
+    }
+
+    if (linkId && !mongoose.Types.ObjectId.isValid(linkId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid linkId filter',
+      });
+    }
+
+    const from = parseIstDateBoundary(fromDate, false);
+    const to = parseIstDateBoundary(toDate, true);
+    if (fromDate && !from) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid fromDate filter',
+      });
+    }
+    if (toDate && !to) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid toDate filter',
+      });
+    }
+    if (from && to && from > to) {
+      return res.status(400).json({
+        success: false,
+        message: 'fromDate cannot be after toDate',
+      });
+    }
+
+    const clickMatch = {};
+    if (userId) clickMatch.userId = userId;
+    if (linkId) clickMatch.linkId = linkId;
+    if (from || to) {
+      clickMatch.clickedAt = {};
+      if (from) clickMatch.clickedAt.$gte = from;
+      if (to) clickMatch.clickedAt.$lte = to;
+    }
+
+    const clicks = await ClickEvent.find(clickMatch)
+      .sort({ clickedAt: -1 })
+      .populate('userId', 'fullName email mobile')
+      .populate('linkId', 'name destination')
+      .lean();
+
+    const usageMatch = {};
+    if (userId) usageMatch.userId = userId;
+    if (linkId) usageMatch.linkId = linkId;
+    const usages = await LinkUsage.find(usageMatch).select('userId linkId').lean();
+    const validPairs = new Set(usages.map((u) => `${u.userId}:${u.linkId}`));
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Nexora Bizworks';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Click Analytics', {
+      views: [{ state: 'frozen', ySplit: 1 }],
+    });
+
+    sheet.columns = [
+      { header: 'Clicked At (IST)', key: 'clickedAt', width: 28 },
+      { header: 'User Name', key: 'userName', width: 22 },
+      { header: 'User Email', key: 'userEmail', width: 28 },
+      { header: 'User Mobile', key: 'userMobile', width: 16 },
+      { header: 'Link Name', key: 'linkName', width: 20 },
+      { header: 'Destination URL', key: 'destination', width: 36 },
+      { header: 'IP Address', key: 'ipAddress', width: 18 },
+      { header: 'User Agent', key: 'userAgent', width: 42 },
+      { header: 'Was Valid First Click', key: 'wasValidFirstClick', width: 22 },
+    ];
+
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F4E79' },
+    };
+    headerRow.alignment = { vertical: 'middle', wrapText: true };
+    headerRow.height = 22;
+
+    clicks.forEach((click) => {
+      const user = click.userId && typeof click.userId === 'object' ? click.userId : null;
+      const link = click.linkId && typeof click.linkId === 'object' ? click.linkId : null;
+      const pairKey = `${user?._id || click.userId}:${link?._id || click.linkId}`;
+
+      sheet.addRow({
+        clickedAt: formatIstDateTime(click.clickedAt),
+        userName: user?.fullName || '',
+        userEmail: user?.email || '',
+        userMobile: user?.mobile || '',
+        linkName: link?.name || '',
+        destination: link?.destination || '',
+        ipAddress: click.ipAddress || '',
+        userAgent: click.userAgent || '',
+        wasValidFirstClick: validPairs.has(pairKey) ? 'Yes' : 'No',
+      });
+    });
+
+    const stamp = istFileDateFormatter.format(new Date());
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="nexora-analytics-report-${stamp}.xlsx"`
+    );
+
+    await workbook.xlsx.write(res);
+    return res.end();
+  } catch (error) {
+    console.error('exportAnalyticsReport error:', error);
+    if (res.headersSent) return;
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to export analytics report',
     });
   }
 }

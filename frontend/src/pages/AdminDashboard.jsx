@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiRequest } from '../api/client'
+import { apiRequest, getAdminToken } from '../api/client'
 import AdminShell from '../components/AdminShell'
 import './Admin.css'
 
@@ -12,8 +12,23 @@ function formatNumber(value) {
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null)
+  const [users, setUsers] = useState([])
+  const [links, setLinks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reportError, setReportError] = useState('')
+  const [reportBusy, setReportBusy] = useState(false)
+  const [filters, setFilters] = useState({
+    userId: '',
+    linkId: '',
+    fromDate: '',
+    toDate: '',
+  })
+
+  const apiBase = useMemo(
+    () => (import.meta.env.VITE_API_URL || '').replace(/\/$/, ''),
+    []
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -22,8 +37,16 @@ export default function AdminDashboard() {
       setLoading(true)
       setError('')
       try {
-        const data = await apiRequest('/api/admin/analytics/summary')
-        if (!cancelled) setSummary(data)
+        const [summaryData, usersData, linksData] = await Promise.all([
+          apiRequest('/api/admin/analytics/summary'),
+          apiRequest('/api/admin/analytics/users'),
+          apiRequest('/api/admin/analytics/links'),
+        ])
+        if (!cancelled) {
+          setSummary(summaryData)
+          setUsers(usersData.users || [])
+          setLinks(linksData.links || [])
+        }
       } catch (err) {
         if (!cancelled) setError(err.message || 'Failed to load summary')
       } finally {
@@ -36,6 +59,74 @@ export default function AdminDashboard() {
       cancelled = true
     }
   }, [])
+
+  function updateFilter(event) {
+    const { name, value } = event.target
+    setFilters((prev) => ({ ...prev, [name]: value }))
+  }
+
+  function resetFilters() {
+    setFilters({
+      userId: '',
+      linkId: '',
+      fromDate: '',
+      toDate: '',
+    })
+    setReportError('')
+  }
+
+  async function downloadReport(event) {
+    event.preventDefault()
+    setReportBusy(true)
+    setReportError('')
+
+    try {
+      const params = new URLSearchParams()
+      if (filters.userId) params.set('userId', filters.userId)
+      if (filters.linkId) params.set('linkId', filters.linkId)
+      if (filters.fromDate) params.set('fromDate', filters.fromDate)
+      if (filters.toDate) params.set('toDate', filters.toDate)
+
+      const token = getAdminToken()
+      const response = await fetch(
+        `${apiBase}/api/admin/analytics/export${params.toString() ? `?${params}` : ''}`,
+        {
+          method: 'GET',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
+        }
+      )
+
+      if (!response.ok) {
+        let message = `Export failed (${response.status})`
+        try {
+          const data = await response.json()
+          if (data?.message) message = data.message
+        } catch {
+          // ignore JSON parse error, keep fallback message
+        }
+        throw new Error(message)
+      }
+
+      const blob = await response.blob()
+      const contentDisposition = response.headers.get('content-disposition') || ''
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
+      const fileName = fileNameMatch?.[1] || 'nexora-analytics-report.xlsx'
+
+      const url = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = fileName
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setReportError(err.message || 'Unable to download report')
+    } finally {
+      setReportBusy(false)
+    }
+  }
 
   return (
     <AdminShell title="Dashboard">
@@ -75,6 +166,69 @@ export default function AdminDashboard() {
               <span>Valid clicks</span>
               <strong>{formatNumber(summary.totalValidClicks)}</strong>
             </div>
+          </div>
+
+          <div className="admin-panel">
+            <div className="admin-panel-head">
+              <h2 className="admin-section-title">Download reports (Excel)</h2>
+              <p className="admin-section-note">Export click analytics Excel with filters</p>
+            </div>
+            <form className="admin-report-form" onSubmit={downloadReport}>
+              <label className="admin-report-field">
+                User filter
+                <select name="userId" value={filters.userId} onChange={updateFilter}>
+                  <option value="">All users</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.fullName} ({user.email})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="admin-report-field">
+                Link filter
+                <select name="linkId" value={filters.linkId} onChange={updateFilter}>
+                  <option value="">All links</option>
+                  {links.map((link) => (
+                    <option key={link.linkId} value={link.linkId}>
+                      {link.linkName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="admin-report-field admin-report-field-date">
+                From date
+                <input
+                  type="date"
+                  name="fromDate"
+                  value={filters.fromDate}
+                  onChange={updateFilter}
+                />
+              </label>
+              <label className="admin-report-field admin-report-field-date">
+                To date
+                <input
+                  type="date"
+                  name="toDate"
+                  value={filters.toDate}
+                  onChange={updateFilter}
+                />
+              </label>
+              <div className="admin-report-actions">
+                <button type="submit" className="admin-btn" disabled={reportBusy}>
+                  {reportBusy ? 'Preparing...' : 'Download Excel'}
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  onClick={resetFilters}
+                  disabled={reportBusy}
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+            {reportError ? <p className="admin-error">{reportError}</p> : null}
           </div>
 
           <div className="admin-panel">

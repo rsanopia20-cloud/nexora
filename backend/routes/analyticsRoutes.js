@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  exportAnalyticsReport,
   getAllUsers,
   getDashboardSummary,
   getLinkDetail,
@@ -13,6 +14,7 @@ const router = Router();
 router.use(requireAdmin);
 
 router.get('/summary', getDashboardSummary);
+router.get('/export', exportAnalyticsReport);
 router.get('/links', getLinkStats);
 router.get('/links/:linkId', getLinkDetail);
 router.get('/users', getAllUsers);

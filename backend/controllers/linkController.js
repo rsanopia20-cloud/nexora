@@ -1,4 +1,5 @@
-import Link from '../models/Link.js';
+import mongoose from 'mongoose';
+import Link, { LINK_SORT } from '../models/Link.js';
 import ClickEvent from '../models/ClickEvent.js';
 import LinkUsage from '../models/LinkUsage.js';
 import TrackingCode from '../models/TrackingCode.js';
@@ -14,10 +15,16 @@ export async function createLink(req, res) {
       });
     }
 
+    const last = await Link.findOne().sort({ sortOrder: -1 }).select('sortOrder').lean();
+    const sortOrder = Number.isFinite(last?.sortOrder)
+      ? last.sortOrder + 1
+      : await Link.countDocuments();
+
     const link = await Link.create({
       name: name.trim(),
       destination: destination.trim(),
       active: true,
+      sortOrder,
     });
 
     return res.status(201).json({
@@ -43,7 +50,7 @@ export async function getAllLinks(req, res) {
       filter.active = false;
     }
 
-    const links = await Link.find(filter).sort({ createdAt: -1 });
+    const links = await Link.find(filter).sort(LINK_SORT);
 
     return res.json({
       success: true,
@@ -60,6 +67,66 @@ export async function getAllLinks(req, res) {
 }
 
 /**
+ * PUT /api/admin/links/reorder
+ * Saves the admin list order. WhatsApp and user dashboards use this order.
+ */
+export async function reorderLinks(req, res) {
+  try {
+    const { orderedIds } = req.body;
+
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'orderedIds array is required',
+      });
+    }
+
+    const uniqueIds = [...new Set(orderedIds.map(String))];
+    if (uniqueIds.some((id) => !mongoose.Types.ObjectId.isValid(id))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid link id',
+      });
+    }
+
+    const existing = await Link.find({ _id: { $in: uniqueIds } }).select('_id');
+    if (existing.length !== uniqueIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more links were not found',
+      });
+    }
+
+    await Promise.all(
+      uniqueIds.map((id, index) =>
+        Link.updateOne({ _id: id }, { $set: { sortOrder: index } })
+      )
+    );
+
+    const leftovers = await Link.find({ _id: { $nin: uniqueIds } }).sort(LINK_SORT);
+    await Promise.all(
+      leftovers.map((link, index) =>
+        Link.updateOne(
+          { _id: link._id },
+          { $set: { sortOrder: uniqueIds.length + index } }
+        )
+      )
+    );
+
+    return res.json({
+      success: true,
+      message: 'Link order saved',
+    });
+  } catch (error) {
+    console.error('reorderLinks error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to save link order',
+    });
+  }
+}
+
+/**
  * GET /api/links — authenticated user dashboard listing.
  * Returns only active links with display fields (real destination URLs).
  */
@@ -67,7 +134,7 @@ export async function getActiveLinksForUser(req, res) {
   try {
     const links = await Link.find({ active: true })
       .select('_id name destination')
-      .sort({ createdAt: 1 })
+      .sort(LINK_SORT)
       .lean();
 
     return res.json({

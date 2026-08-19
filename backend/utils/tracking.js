@@ -1,11 +1,8 @@
 import crypto from 'crypto';
+import { getPublicBaseUrl } from './publicUrl.js';
 
 function getTrackingSecret() {
   return process.env.TRACKING_SECRET;
-}
-
-function getBaseUrl() {
-  return process.env.BASE_URL || 'http://localhost:5000';
 }
 
 function computeSignature(linkId, userId) {
@@ -27,12 +24,11 @@ function computeSignature(linkId, userId) {
 
 /**
  * Builds a signed one-time tracking URL for a (link, user) pair.
- * Format: `${BASE_URL}/t/${linkId}.${userId}.${signature}`
+ * Format: `${publicBase}/t/${linkId}.${userId}.${signature}`
  */
 export function generateTrackingUrl(linkId, userId) {
   const signature = computeSignature(String(linkId), String(userId));
-  const baseUrl = getBaseUrl().replace(/\/$/, '');
-  return `${baseUrl}/t/${linkId}.${userId}.${signature}`;
+  return `${getPublicBaseUrl()}/t/${linkId}.${userId}.${signature}`;
 }
 
 /**

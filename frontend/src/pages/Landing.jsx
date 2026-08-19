@@ -88,7 +88,7 @@ export default function Landing() {
     setSearchParams({}, { replace: true })
   }
 
-  if (!loading && isAuthenticated && authMode !== 'signup') {
+  if (!loading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />
   }
 
