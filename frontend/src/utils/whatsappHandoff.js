@@ -9,6 +9,14 @@ export function stashPendingWhatsApp(url) {
   }
 }
 
+export function peekPendingWhatsApp() {
+  try {
+    return sessionStorage.getItem(PENDING_WHATSAPP_KEY)
+  } catch {
+    return null
+  }
+}
+
 export function consumePendingWhatsApp() {
   try {
     const url = sessionStorage.getItem(PENDING_WHATSAPP_KEY)

@@ -5,7 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import DashboardFooter from '../components/DashboardFooter'
 import DashboardHeader from '../components/DashboardHeader'
 import { useAuth } from '../context/AuthContext'
-import { consumePendingWhatsApp } from '../utils/whatsappHandoff'
+import { consumePendingWhatsApp, peekPendingWhatsApp } from '../utils/whatsappHandoff'
 
 const eyebrow = 'mb-2 text-[0.78rem] font-bold uppercase tracking-[0.14em] text-teal'
 
@@ -63,15 +63,20 @@ export default function Dashboard() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [logoutBusy, setLogoutBusy] = useState(false)
   const [whatsappHandoff, setWhatsappHandoff] = useState(false)
+  const [whatsappUrl, setWhatsappUrl] = useState('')
 
   useEffect(() => {
-    const waLink = consumePendingWhatsApp()
+    // Peek only — React Strict Mode remounts this effect and would otherwise
+    // delete the URL on the first run, then cancel the redirect timer.
+    const waLink = peekPendingWhatsApp()
     if (!waLink) return undefined
 
     setWhatsappHandoff(true)
+    setWhatsappUrl(waLink)
     const timer = window.setTimeout(() => {
+      consumePendingWhatsApp()
       window.location.assign(waLink)
-    }, 500)
+    }, 600)
 
     return () => window.clearTimeout(timer)
   }, [])
@@ -181,7 +186,16 @@ export default function Dashboard() {
         {whatsappHandoff ? (
           <div className="page-x pt-4">
             <p className="mx-auto mb-0 max-w-[1160px] rounded-[0.4rem] bg-teal/12 px-4 py-3 text-[0.92rem] font-semibold text-teal">
-              Account created. Opening WhatsApp with your offer links...
+              Account created. Opening WhatsApp with your offer links...{' '}
+              {whatsappUrl ? (
+                <a
+                  href={whatsappUrl}
+                  className="underline underline-offset-2"
+                  onClick={() => consumePendingWhatsApp()}
+                >
+                  Open WhatsApp
+                </a>
+              ) : null}
             </p>
           </div>
         ) : null}

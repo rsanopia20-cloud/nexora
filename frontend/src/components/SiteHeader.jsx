@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import BrandLogo from './BrandLogo'
+import MenuToggleButton from './MenuToggleButton'
 
 export const NAV_LINKS = [
   {
@@ -194,17 +195,11 @@ export default function SiteHeader({ onOpenAuth }) {
             </>
           )}
         </nav>
-        <button
-          type="button"
-          className="inline-flex h-10 w-10 shrink-0 flex-col justify-center gap-[0.28rem] rounded-[0.35rem] border border-mist bg-transparent p-2.5 lg:hidden"
-          aria-expanded={menuOpen}
-          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        <MenuToggleButton
+          open={menuOpen}
+          className="lg:hidden"
           onClick={() => setMenuOpen((open) => !open)}
-        >
-          <span className="block h-0.5 w-full rounded-sm bg-ink" />
-          <span className="block h-0.5 w-full rounded-sm bg-ink" />
-          <span className="block h-0.5 w-full rounded-sm bg-ink" />
-        </button>
+        />
       </div>
     </header>
   )
