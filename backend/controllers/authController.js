@@ -51,13 +51,32 @@ export async function signup(req, res) {
   try {
     const { fullName, mobile, email, password } = req.body;
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const [emailTaken, mobileTaken] = await Promise.all([
+      User.findOne({ email: email.toLowerCase() }).select('_id'),
+      User.findOne({ mobile }).select('_id'),
+    ]);
 
-    if (existing) {
+    const conflicts = [];
+    if (emailTaken) {
+      conflicts.push({ field: 'email', message: 'This email is already registered' });
+    }
+    if (mobileTaken) {
+      conflicts.push({
+        field: 'mobile',
+        message: 'This mobile number is already registered',
+      });
+    }
+
+    if (conflicts.length) {
+      const both = conflicts.length === 2;
       return res.status(409).json({
         success: false,
-        message: 'An account with this email already exists',
-        errors: [{ field: 'email', message: 'This email is already registered' }],
+        message: both
+          ? 'An account with this email and mobile number already exists'
+          : conflicts[0].field === 'email'
+            ? 'An account with this email already exists'
+            : 'An account with this mobile number already exists',
+        errors: conflicts,
       });
     }
 
@@ -94,10 +113,16 @@ export async function signup(req, res) {
   } catch (error) {
     if (error?.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0] || 'email';
+      const label = field === 'mobile' ? 'mobile number' : field;
       return res.status(409).json({
         success: false,
-        message: `An account with this ${field} already exists`,
-        errors: [{ field, message: `This ${field} is already registered` }],
+        message: `An account with this ${label} already exists`,
+        errors: [
+          {
+            field,
+            message: `This ${label} is already registered`,
+          },
+        ],
       });
     }
 
