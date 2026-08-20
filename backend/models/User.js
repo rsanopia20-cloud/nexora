@@ -31,6 +31,13 @@ const userSchema = new mongoose.Schema(
       minlength: [8, 'Password must be at least 8 characters'],
       select: false,
     },
+    referralCode: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+      default: null,
+    },
   },
   {
     timestamps: true,

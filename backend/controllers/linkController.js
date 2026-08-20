@@ -6,7 +6,7 @@ import TrackingCode from '../models/TrackingCode.js';
 
 export async function createLink(req, res) {
   try {
-    const { name, destination } = req.body;
+    const { name, destination, commissionAmount } = req.body;
 
     if (!name?.trim() || !destination?.trim()) {
       return res.status(400).json({
@@ -20,12 +20,18 @@ export async function createLink(req, res) {
       ? last.sortOrder + 1
       : await Link.countDocuments();
 
-    const link = await Link.create({
+    const payload = {
       name: name.trim(),
       destination: destination.trim(),
       active: true,
       sortOrder,
-    });
+    };
+
+    if (commissionAmount !== undefined) {
+      payload.commissionAmount = Number(commissionAmount);
+    }
+
+    const link = await Link.create(payload);
 
     return res.status(201).json({
       success: true,
@@ -164,6 +170,9 @@ export async function updateLink(req, res) {
     }
     if (req.body.active !== undefined) {
       updates.active = Boolean(req.body.active);
+    }
+    if (req.body.commissionAmount !== undefined) {
+      updates.commissionAmount = Number(req.body.commissionAmount);
     }
 
     if (Object.keys(updates).length === 0) {

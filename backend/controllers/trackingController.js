@@ -1,4 +1,6 @@
+import { URL } from 'url';
 import Link from '../models/Link.js';
+import User from '../models/User.js';
 import ClickEvent from '../models/ClickEvent.js';
 import LinkUsage from '../models/LinkUsage.js';
 import TrackingCode from '../models/TrackingCode.js';
@@ -10,6 +12,30 @@ function homepageUrl() {
 
 function redirectHome(res) {
   return res.redirect(302, homepageUrl());
+}
+
+/**
+ * Append utm_medium={referralCode} to the partner destination URL.
+ * Uses the URL class so existing query params are preserved safely.
+ */
+function appendReferralUtm(destination, referralCode) {
+  if (!referralCode) {
+    console.warn('Redirect skipped utm_medium: user has no referralCode');
+    return destination;
+  }
+
+  try {
+    const destUrl = new URL(destination);
+    destUrl.searchParams.set('utm_medium', referralCode);
+    return destUrl.toString();
+  } catch (error) {
+    console.warn(
+      'Redirect skipped utm_medium: invalid destination URL',
+      destination,
+      error.message
+    );
+    return destination;
+  }
 }
 
 /**
@@ -58,7 +84,13 @@ export async function processClickAttempt(linkId, userId, req) {
       return { status: 'unavailable' };
     }
 
-    return { status: 'ok', destination: link.destination };
+    // Callers (/t/:token, /l/:code, POST /api/links/click) only pass userId —
+    // not a loaded User doc — so fetch referralCode here in one targeted query
+    // instead of threading User through every entry point.
+    const user = await User.findById(userId).select('referralCode').lean();
+    const destination = appendReferralUtm(link.destination, user?.referralCode);
+
+    return { status: 'ok', destination };
   } catch (error) {
     console.error('processClickAttempt error:', error);
     return { status: 'unavailable' };

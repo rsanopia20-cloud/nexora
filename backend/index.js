@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import multer from 'multer';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import linkRoutes from './routes/linkRoutes.js';
@@ -11,6 +12,10 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import userLinkRoutes from './routes/userLinkRoutes.js';
 import adminAuthRoutes from './routes/adminAuthRoutes.js';
+import conversionRoutes, {
+  adminUserSearchRouter,
+  userConversionRouter,
+} from './routes/conversionRoutes.js';
 
 dotenv.config();
 
@@ -90,12 +95,30 @@ app.use('/api/links', userLinkRoutes);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin/links', linkRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
+app.use('/api/admin/users', adminUserSearchRouter);
+app.use('/api/admin/conversions', conversionRoutes);
+app.use('/api/conversions', userConversionRouter);
 // Public tracking redirects — must NOT sit behind JWT auth
 // Mounted at / so /t/:token (legacy) and /l/:code (short) both work
 app.use('/', trackingRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      success: false,
+      message: err.code === 'LIMIT_FILE_SIZE' ? 'File too large (max 10MB)' : err.message,
+    });
+  }
+
+  if (err?.message?.includes('Excel files')) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
   res.status(500).json({
     success: false,
     message: 'Internal server error',

@@ -3,6 +3,7 @@ import Link, { LINK_SORT } from '../models/Link.js';
 import { clearAuthCookie, setAuthCookie, signToken } from '../utils/token.js';
 import { generateShortTrackingUrl } from '../utils/shortCode.js';
 import { sendWelcomeEmail } from '../utils/sendWelcomeEmail.js';
+import { assignReferralCodeIfMissing } from '../utils/referralCode.js';
 
 function authPayload(user, token) {
   return {
@@ -89,6 +90,11 @@ export async function signup(req, res) {
 
     const token = signToken(user);
     setAuthCookie(res, token);
+
+    // Fire-and-forget referral code — one-time assignment, must not delay signup.
+    assignReferralCodeIfMissing(user).catch((err) =>
+      console.error('Referral code assignment failed:', err)
+    );
 
     // Tracking/WhatsApp link generation must never fail signup —
     // account creation + JWT already succeeded above.

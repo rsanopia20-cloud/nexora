@@ -6,10 +6,14 @@ import { AdminAuthProvider } from './context/AdminAuthContext'
 import { AuthProvider } from './context/AuthContext'
 import About from './pages/About'
 import AdminDashboard from './pages/AdminDashboard'
+import AdminConversionCustomerDetail from './pages/AdminConversionCustomerDetail'
+import AdminConversions from './pages/AdminConversions'
+import AdminConversionUpload from './pages/AdminConversionUpload'
 import AdminLinkDetail from './pages/AdminLinkDetail'
 import AdminLinks from './pages/AdminLinks'
 import AdminUserDetail from './pages/AdminUserDetail'
 import AdminUsers from './pages/AdminUsers'
+import AdminUnmatchedConversions from './pages/AdminUnmatchedConversions'
 import Dashboard from './pages/Dashboard'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
@@ -69,6 +73,38 @@ function App() {
               element={
                 <AdminProtectedRoute>
                   <AdminUsers />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/conversions"
+              element={
+                <AdminProtectedRoute>
+                  <AdminConversions />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/conversions/upload"
+              element={
+                <AdminProtectedRoute>
+                  <AdminConversionUpload />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/conversions/unmatched"
+              element={
+                <AdminProtectedRoute>
+                  <AdminUnmatchedConversions />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/conversions/:userId"
+              element={
+                <AdminProtectedRoute>
+                  <AdminConversionCustomerDetail />
                 </AdminProtectedRoute>
               }
             />

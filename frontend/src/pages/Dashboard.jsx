@@ -22,6 +22,10 @@ function formatDate(value) {
   }
 }
 
+function formatCurrency(value) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`
+}
+
 function formatHost(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
@@ -64,6 +68,9 @@ export default function Dashboard() {
   const [logoutBusy, setLogoutBusy] = useState(false)
   const [whatsappHandoff, setWhatsappHandoff] = useState(false)
   const [whatsappUrl, setWhatsappUrl] = useState('')
+  const [earnings, setEarnings] = useState(null)
+  const [earningsLoading, setEarningsLoading] = useState(true)
+  const [earningsError, setEarningsError] = useState('')
 
   useEffect(() => {
     // Peek only — React Strict Mode remounts this effect and would otherwise
@@ -79,6 +86,28 @@ export default function Dashboard() {
     }, 600)
 
     return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadEarnings() {
+      setEarningsLoading(true)
+      setEarningsError('')
+      try {
+        const data = await apiRequest('/api/conversions/me')
+        if (!cancelled) setEarnings(data)
+      } catch (err) {
+        if (!cancelled) setEarningsError(err.message || 'Failed to load earnings')
+      } finally {
+        if (!cancelled) setEarningsLoading(false)
+      }
+    }
+
+    loadEarnings()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -269,6 +298,22 @@ export default function Dashboard() {
                 </div>
               </a>
               <a
+                href="#earnings"
+                className="flex items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.35rem] bg-teal/12 text-sm font-bold text-teal sm:h-10 sm:w-10">
+                  ₹
+                </span>
+                <div className="min-w-0">
+                  <p className="m-0 text-[0.92rem] font-bold tracking-[-0.02em] sm:text-[0.95rem]">
+                    My earnings
+                  </p>
+                  <p className="m-0 text-[0.82rem] text-muted sm:text-[0.85rem]">
+                    Track earned, paid, pending
+                  </p>
+                </div>
+              </a>
+              <a
                 href="mailto:support@nexora-marketing.com"
                 className="flex items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
               >
@@ -413,6 +458,150 @@ export default function Dashboard() {
                 )
               })}
             </ul>
+          ) : null}
+        </section>
+
+        {/* Earnings */}
+        <section
+          id="earnings"
+          className="scroll-anchor page-x py-[clamp(2rem,6vh,5rem)] mx-auto max-w-[1160px]"
+          aria-labelledby="earnings-heading"
+        >
+          <div className="mb-5 flex flex-col gap-1.5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-2">
+            <div>
+              <p className={eyebrow}>Payments</p>
+              <h2
+                id="earnings-heading"
+                className="m-0 text-[clamp(1.35rem,4.5vw,2.2rem)] font-bold leading-[1.12] tracking-[-0.03em] sm:font-extrabold sm:leading-[1.1] sm:tracking-[-0.035em]"
+              >
+                My earnings
+              </h2>
+            </div>
+          </div>
+
+          {earningsLoading ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {[1, 2, 3].map((n) => (
+                <div
+                  key={n}
+                  className="h-24 animate-pulse rounded-[0.45rem] border border-mist bg-white/80"
+                  aria-hidden="true"
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {earningsError ? (
+            <div className="rounded-[0.4rem] border border-signal/30 bg-signal/8 px-4 py-3.5 text-[0.95rem] font-semibold text-signal-deep">
+              {earningsError}
+            </div>
+          ) : null}
+
+          {!earningsLoading && !earningsError ? (
+            <>
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 sm:gap-4">
+                <div className="rounded-[0.4rem] border-t-[3px] border-teal bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)]">
+                  <p className="m-0 text-[0.74rem] font-bold uppercase tracking-[0.08em] text-muted">
+                    Total earned
+                  </p>
+                  <p className="m-0 mt-1 text-[1.35rem] font-bold tracking-[-0.03em] sm:text-[1.65rem]">
+                    {formatCurrency(earnings?.totalEarned)}
+                  </p>
+                </div>
+                <div className="rounded-[0.4rem] border-t-[3px] border-[#7a8b9f] bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)]">
+                  <p className="m-0 text-[0.74rem] font-bold uppercase tracking-[0.08em] text-muted">
+                    Total paid
+                  </p>
+                  <p className="m-0 mt-1 text-[1.35rem] font-bold tracking-[-0.03em] sm:text-[1.65rem]">
+                    {formatCurrency(earnings?.totalPaid)}
+                  </p>
+                </div>
+                <div className="rounded-[0.4rem] border-t-[3px] border-signal bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)]">
+                  <p className="m-0 text-[0.74rem] font-bold uppercase tracking-[0.08em] text-muted">
+                    Total pending
+                  </p>
+                  <p className="m-0 mt-1 text-[1.35rem] font-bold tracking-[-0.03em] sm:text-[1.65rem]">
+                    {formatCurrency(earnings?.totalPending)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
+                <h3 className="m-0 mb-3 text-[1rem] font-bold tracking-[-0.02em] sm:text-[1.05rem]">
+                  By campaign link
+                </h3>
+                {!earnings?.byLink?.length ? (
+                  <p className="m-0 text-[0.92rem] text-muted">No payable accounts yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[560px] w-full border-collapse text-left text-[0.9rem]">
+                      <thead>
+                        <tr className="border-b border-mist text-[0.72rem] uppercase tracking-[0.06em] text-muted">
+                          <th className="py-2.5 pr-3">Link</th>
+                          <th className="py-2.5 pr-3">Accounts</th>
+                          <th className="py-2.5 pr-3">Earned</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {earnings.byLink.map((row) => (
+                          <tr key={String(row.linkId)} className="border-b border-mist/70">
+                            <td className="py-2.5 pr-3 font-semibold">{row.linkName || 'Unknown link'}</td>
+                            <td className="py-2.5 pr-3">{row.accountCount || 0}</td>
+                            <td className="py-2.5 pr-3">{formatCurrency(row.totalEarned)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
+                <h3 className="m-0 mb-3 text-[1rem] font-bold tracking-[-0.02em] sm:text-[1.05rem]">
+                  Earnings records
+                </h3>
+                {!earnings?.records?.length ? (
+                  <p className="m-0 text-[0.92rem] text-muted">No payable records yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[760px] w-full border-collapse text-left text-[0.9rem]">
+                      <thead>
+                        <tr className="border-b border-mist text-[0.72rem] uppercase tracking-[0.06em] text-muted">
+                          <th className="py-2.5 pr-3">Account</th>
+                          <th className="py-2.5 pr-3">App status</th>
+                          <th className="py-2.5 pr-3">Amount</th>
+                          <th className="py-2.5 pr-3">Payment</th>
+                          <th className="py-2.5 pr-3">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {earnings.records.map((record) => (
+                          <tr key={String(record.id)} className="border-b border-mist/70">
+                            <td className="py-2.5 pr-3 font-semibold">
+                              {record.clientName || 'Referred account'}
+                            </td>
+                            <td className="py-2.5 pr-3">{record.appStatus || '—'}</td>
+                            <td className="py-2.5 pr-3">{formatCurrency(record.commissionAmount)}</td>
+                            <td className="py-2.5 pr-3">
+                              <span
+                                className={`inline-flex rounded-[999px] px-2 py-0.5 text-[0.72rem] font-bold uppercase tracking-[0.05em] ${
+                                  record.paidStatus
+                                    ? 'bg-teal/12 text-teal'
+                                    : 'bg-signal/12 text-signal-deep'
+                                }`}
+                              >
+                                {record.paidStatus ? 'Paid' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 pr-3">{formatDate(record.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
           ) : null}
         </section>
 

@@ -69,6 +69,7 @@ export async function getLinkStats(_req, res) {
           linkId: link._id,
           linkName: link.name,
           destination: link.destination,
+          commissionAmount: link.commissionAmount ?? 0,
           active: link.active,
           sortOrder: link.sortOrder ?? 0,
           totalAttempts,

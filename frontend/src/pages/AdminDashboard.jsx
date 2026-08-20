@@ -142,6 +142,12 @@ export default function AdminDashboard() {
         <Link to="/admin/users" className="admin-btn admin-btn-ghost">
           View Users
         </Link>
+        <Link to="/admin/conversions" className="admin-btn admin-btn-ghost">
+          Customer Earnings
+        </Link>
+        <Link to="/admin/conversions/upload" className="admin-btn admin-btn-ghost">
+          Upload Excel
+        </Link>
       </div>
 
       {loading ? <p className="admin-loading">Loading dashboard...</p> : null}

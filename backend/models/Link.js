@@ -18,6 +18,12 @@ const linkSchema = new mongoose.Schema(
       required: [true, 'Destination URL is required'],
       trim: true,
     },
+    commissionAmount: {
+      type: Number,
+      required: [true, 'Commission amount is required'],
+      default: 0,
+      min: [0, 'Commission amount cannot be negative'],
+    },
     active: {
       type: Boolean,
       default: true,

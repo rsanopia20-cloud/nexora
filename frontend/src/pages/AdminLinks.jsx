@@ -10,6 +10,10 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString('en-IN')
 }
 
+function formatCurrency(value) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`
+}
+
 function shortenUrl(url, max = 42) {
   if (!url) return '—'
   if (url.length <= max) return url
@@ -23,12 +27,17 @@ export default function AdminLinks() {
   const [success, setSuccess] = useState('')
   const [name, setName] = useState('')
   const [destination, setDestination] = useState('')
+  const [commissionAmount, setCommissionAmount] = useState('0')
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [filter, setFilter] = useState('all') // all | active | inactive
   const [dragId, setDragId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const [canDrag, setCanDrag] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editDestination, setEditDestination] = useState('')
+  const [editCommission, setEditCommission] = useState('0')
 
   async function loadLinks() {
     setLoading(true)
@@ -61,9 +70,31 @@ export default function AdminLinks() {
     return links
   }, [links, filter])
 
+  function startEdit(link) {
+    setEditingId(link.linkId)
+    setEditName(link.linkName || '')
+    setEditDestination(link.destination || '')
+    setEditCommission(String(link.commissionAmount ?? 0))
+    setError('')
+    setSuccess('')
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditName('')
+    setEditDestination('')
+    setEditCommission('0')
+  }
+
   async function handleCreate(event) {
     event.preventDefault()
     if (!name.trim() || !destination.trim()) return
+
+    const amount = Number(commissionAmount)
+    if (!Number.isFinite(amount) || amount < 0) {
+      setError('Commission amount must be 0 or more')
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -74,16 +105,64 @@ export default function AdminLinks() {
         body: JSON.stringify({
           name: name.trim(),
           destination: destination.trim(),
+          commissionAmount: amount,
         }),
       })
       setName('')
       setDestination('')
+      setCommissionAmount('0')
       setSuccess('Link added successfully.')
       await loadLinks()
     } catch (err) {
       setError(err.message || 'Failed to create link')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSaveEdit(link) {
+    const nextName = editName.trim()
+    const nextDestination = editDestination.trim()
+    const nextCommission = Number(editCommission)
+
+    if (!nextName || !nextDestination) {
+      setError('Name and destination are required')
+      return
+    }
+    if (!Number.isFinite(nextCommission) || nextCommission < 0) {
+      setError('Commission amount must be 0 or more')
+      return
+    }
+
+    const payload = {}
+    if (nextName !== (link.linkName || '')) payload.name = nextName
+    if (nextDestination !== (link.destination || '')) {
+      payload.destination = nextDestination
+    }
+    if (Number(link.commissionAmount || 0) !== nextCommission) {
+      payload.commissionAmount = nextCommission
+    }
+
+    if (!Object.keys(payload).length) {
+      cancelEdit()
+      return
+    }
+
+    setBusyId(link.linkId)
+    setError('')
+    setSuccess('')
+    try {
+      await apiRequest(`/api/admin/links/${link.linkId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+      setSuccess('Link updated.')
+      cancelEdit()
+      await loadLinks()
+    } catch (err) {
+      setError(err.message || 'Failed to update link')
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -221,6 +300,18 @@ export default function AdminLinks() {
                 required
               />
             </label>
+            <label>
+              Commission Amount (₹)
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={commissionAmount}
+                onChange={(e) => setCommissionAmount(e.target.value)}
+                placeholder="0"
+                required
+              />
+            </label>
             <button className="admin-btn" type="submit" disabled={saving}>
               {saving ? 'Adding...' : 'Add link'}
             </button>
@@ -273,6 +364,7 @@ export default function AdminLinks() {
                   <th>Order</th>
                   <th>Name</th>
                   <th>Destination</th>
+                  <th>Commission</th>
                   <th>Status</th>
                   <th>Attempts</th>
                   <th>Valid uses</th>
@@ -280,108 +372,190 @@ export default function AdminLinks() {
                 </tr>
               </thead>
               <tbody>
-                    {visibleLinks.map((link, index) => (
-                  <tr
-                    key={link.linkId}
-                    draggable={canDrag && !busyId}
-                    onDragStart={() => setDragId(link.linkId)}
-                    onDragOver={(event) => {
-                      event.preventDefault()
-                      setDragOverId(link.linkId)
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      handleDrop(link.linkId)
-                    }}
-                    onDragEnd={() => {
-                      setDragId(null)
-                      setDragOverId(null)
-                    }}
-                    className={[
-                      link.active ? '' : 'admin-muted-row',
-                      dragId === link.linkId ? 'is-dragging' : '',
-                      dragOverId === link.linkId && dragId !== link.linkId
-                        ? 'is-drag-over'
-                        : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ') || undefined}
-                  >
-                    <td className="admin-order-cell" data-label="Order">
-                      <div
-                        className="admin-order-controls"
-                        onPointerDown={(event) => event.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          className="admin-order-btn"
-                          aria-label={`Move ${link.linkName} up`}
-                          disabled={busyId != null || index === 0}
-                          onClick={() => moveLink(link.linkId, -1)}
+                {visibleLinks.map((link, index) => {
+                  const isEditing = editingId === link.linkId
+
+                  return (
+                    <tr
+                      key={link.linkId}
+                      draggable={canDrag && !busyId && !isEditing}
+                      onDragStart={() => setDragId(link.linkId)}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        setDragOverId(link.linkId)
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        handleDrop(link.linkId)
+                      }}
+                      onDragEnd={() => {
+                        setDragId(null)
+                        setDragOverId(null)
+                      }}
+                      className={[
+                        link.active ? '' : 'admin-muted-row',
+                        dragId === link.linkId ? 'is-dragging' : '',
+                        dragOverId === link.linkId && dragId !== link.linkId
+                          ? 'is-drag-over'
+                          : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ') || undefined}
+                    >
+                      <td className="admin-order-cell" data-label="Order">
+                        <div
+                          className="admin-order-controls"
+                          onPointerDown={(event) => event.stopPropagation()}
                         >
-                          ▲
-                        </button>
-                        <button
-                          type="button"
-                          className="admin-order-btn"
-                          aria-label={`Move ${link.linkName} down`}
-                          disabled={busyId != null || index === visibleLinks.length - 1}
-                          onClick={() => moveLink(link.linkId, 1)}
-                        >
-                          ▼
-                        </button>
-                      </div>
-                    </td>
-                    <td className="admin-cell-name" data-label="Name">
-                      {link.linkName}
-                    </td>
-                    <td className="admin-cell-url" data-label="Destination">
-                      <a href={link.destination} target="_blank" rel="noreferrer" title={link.destination}>
-                        {shortenUrl(link.destination)}
-                      </a>
-                    </td>
-                    <td data-label="Status">
-                      <span className={`badge ${link.active ? 'badge-on' : 'badge-off'}`}>
-                        {link.active ? 'Active' : 'Removed'}
-                      </span>
-                    </td>
-                    <td className="admin-num" data-label="Attempts">
-                      {formatNumber(link.totalAttempts)}
-                    </td>
-                    <td className="admin-num" data-label="Valid uses">
-                      {formatNumber(link.uniqueValidUses)}
-                    </td>
-                    <td data-label="Actions">
-                      <div className="admin-actions">
-                        <Link className="admin-btn-link" to={`/admin/links/${link.linkId}`}>
-                          Details
-                        </Link>
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn-ghost"
-                          disabled={busyId === link.linkId}
-                          onClick={() => toggleActive(link)}
-                        >
-                          {busyId === link.linkId
-                            ? '...'
-                            : link.active
-                              ? 'Deactivate'
-                              : 'Restore'}
-                        </button>
-                        {link.active ? (
                           <button
                             type="button"
-                            className="admin-btn admin-btn-danger"
-                            disabled={busyId === link.linkId}
-                            onClick={() => removeLink(link)}
+                            className="admin-order-btn"
+                            aria-label={`Move ${link.linkName} up`}
+                            disabled={busyId != null || index === 0 || isEditing}
+                            onClick={() => moveLink(link.linkId, -1)}
                           >
-                            Remove
+                            ▲
                           </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            type="button"
+                            className="admin-order-btn"
+                            aria-label={`Move ${link.linkName} down`}
+                            disabled={
+                              busyId != null ||
+                              index === visibleLinks.length - 1 ||
+                              isEditing
+                            }
+                            onClick={() => moveLink(link.linkId, 1)}
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </td>
+                      <td className="admin-cell-name" data-label="Name">
+                        {isEditing ? (
+                          <input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            aria-label="Edit link name"
+                            required
+                          />
+                        ) : (
+                          link.linkName
+                        )}
+                      </td>
+                      <td className="admin-cell-url" data-label="Destination">
+                        {isEditing ? (
+                          <input
+                            value={editDestination}
+                            onChange={(e) => setEditDestination(e.target.value)}
+                            aria-label="Edit destination URL"
+                            required
+                          />
+                        ) : (
+                          <a
+                            href={link.destination}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={link.destination}
+                          >
+                            {shortenUrl(link.destination)}
+                          </a>
+                        )}
+                      </td>
+                      <td className="admin-num" data-label="Commission">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={editCommission}
+                            onChange={(e) => setEditCommission(e.target.value)}
+                            aria-label="Edit commission amount"
+                            required
+                          />
+                        ) : (
+                          formatCurrency(link.commissionAmount)
+                        )}
+                      </td>
+                      <td data-label="Status">
+                        <span
+                          className={`badge ${link.active ? 'badge-on' : 'badge-off'}`}
+                        >
+                          {link.active ? 'Active' : 'Removed'}
+                        </span>
+                      </td>
+                      <td className="admin-num" data-label="Attempts">
+                        {formatNumber(link.totalAttempts)}
+                      </td>
+                      <td className="admin-num" data-label="Valid uses">
+                        {formatNumber(link.uniqueValidUses)}
+                      </td>
+                      <td data-label="Actions">
+                        <div className="admin-actions">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                className="admin-btn"
+                                disabled={busyId === link.linkId}
+                                onClick={() => handleSaveEdit(link)}
+                              >
+                                {busyId === link.linkId ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-btn admin-btn-ghost"
+                                disabled={busyId === link.linkId}
+                                onClick={cancelEdit}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="admin-btn admin-btn-ghost"
+                                disabled={busyId != null}
+                                onClick={() => startEdit(link)}
+                              >
+                                Edit
+                              </button>
+                              <Link
+                                className="admin-btn-link"
+                                to={`/admin/links/${link.linkId}`}
+                              >
+                                Details
+                              </Link>
+                              <button
+                                type="button"
+                                className="admin-btn admin-btn-ghost"
+                                disabled={busyId === link.linkId}
+                                onClick={() => toggleActive(link)}
+                              >
+                                {busyId === link.linkId
+                                  ? '...'
+                                  : link.active
+                                    ? 'Deactivate'
+                                    : 'Restore'}
+                              </button>
+                              {link.active ? (
+                                <button
+                                  type="button"
+                                  className="admin-btn admin-btn-danger"
+                                  disabled={busyId === link.linkId}
+                                  onClick={() => removeLink(link)}
+                                >
+                                  Remove
+                                </button>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
