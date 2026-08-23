@@ -1177,6 +1177,108 @@
   color: var(--signal-deep);
 }
 
+.admin-mode-fieldset {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--mist);
+  border-radius: 0.45rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-mode-fieldset legend {
+  padding: 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.admin-mode-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  cursor: pointer;
+}
+
+.admin-mode-option input {
+  margin-top: 0.2rem;
+}
+
+.admin-mode-option strong {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.admin-mode-option small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.admin-manual-sheet-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.admin-manual-sheet th,
+.admin-manual-sheet td {
+  white-space: nowrap;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+
+.admin-manual-sheet th.admin-assign-col,
+.admin-manual-sheet td.admin-assign-col {
+  position: sticky;
+  right: 0;
+  z-index: 5;
+  min-width: 18rem;
+  max-width: 22rem;
+  width: 20rem;
+  white-space: normal;
+  overflow: visible;
+  background: #fff;
+  box-shadow: -6px 0 10px -8px rgba(11, 19, 32, 0.18);
+}
+
+.admin-manual-sheet thead th.admin-assign-col {
+  z-index: 6;
+  background: #f7f9fb;
+}
+
+.admin-manual-assign {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 16rem;
+  text-align: left;
+}
+
+.admin-manual-assign .admin-match-search {
+  max-width: none;
+  width: 100%;
+}
+
+.admin-manual-assign .admin-user-dropdown {
+  position: static;
+  max-width: none;
+  max-height: 11rem;
+  overflow-y: auto;
+  box-shadow: none;
+}
+
+.admin-manual-assign .admin-row-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .admin-inline-edit {
   display: inline-flex;
   flex-wrap: wrap;

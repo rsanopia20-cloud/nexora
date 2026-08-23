@@ -18,12 +18,18 @@ const NAV_ITEMS = [
       path === '/admin/conversions' ||
       (path !== '/admin/conversions/unmatched' &&
         path !== '/admin/conversions/upload' &&
+        !path.startsWith('/admin/conversions/manual') &&
         /^\/admin\/conversions\/[^/]+$/.test(path)),
   },
   {
     to: '/admin/conversions/upload',
     label: 'Upload',
     match: (path) => path === '/admin/conversions/upload',
+  },
+  {
+    to: '/admin/conversions/manual',
+    label: 'Manual',
+    match: (path) => path.startsWith('/admin/conversions/manual'),
   },
   {
     to: '/admin/conversions/unmatched',

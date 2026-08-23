@@ -40,6 +40,54 @@ function cell(row, key) {
   return value;
 }
 
+function normalizeHeaderKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Soft-read a field from any Excel column name (manual uploads have no fixed headers).
+ */
+function pickFlexibleField(row, aliases) {
+  const wanted = aliases.map(normalizeHeaderKey);
+  for (const [key, value] of Object.entries(row || {})) {
+    if (wanted.includes(normalizeHeaderKey(key))) {
+      return String(value ?? '').trim();
+    }
+  }
+  return '';
+}
+
+function collectExcelColumns(rows) {
+  const seen = new Set();
+  const columns = [];
+  for (const row of rows) {
+    for (const key of Object.keys(row || {})) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        columns.push(key);
+      }
+    }
+  }
+  return columns;
+}
+
+function serializeRawRow(row) {
+  const raw = {};
+  for (const [key, value] of Object.entries(row || {})) {
+    if (value === undefined || value === null) {
+      raw[key] = '';
+    } else if (value instanceof Date) {
+      raw[key] = value.toISOString();
+    } else {
+      raw[key] = value;
+    }
+  }
+  return raw;
+}
+
 async function buildEarningsDetail(
   userId,
   { includeUser = true, payableRecordsOnly = true } = {}
@@ -154,6 +202,10 @@ async function buildEarningsDetail(
 export async function uploadConversionExcel(req, res) {
   try {
     const { linkId } = req.body;
+    const mode =
+      String(req.body.mode || 'auto').trim().toLowerCase() === 'manual'
+        ? 'manual'
+        : 'auto';
 
     if (!req.file?.buffer) {
       return res.status(400).json({
@@ -192,110 +244,11 @@ export async function uploadConversionExcel(req, res) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-    const payableStatuses = await Settings.getPayableStatuses();
-
-    const batch = await UploadBatch.create({
-      linkId: link._id,
-      fileName: req.file.originalname || 'upload.xlsx',
-      uploadedBy: req.user?._id || null,
-      totalRows: rows.length,
-    });
-
-    let autoMatchedCount = 0;
-    let unmatchedCount = 0;
-    let selfAccountCount = 0;
-    let duplicateSkippedCount = 0;
-
-    for (const row of rows) {
-      try {
-        const clientCode = String(cell(row, 'Client Code')).trim();
-
-        if (!clientCode) {
-          console.warn('Skipping row with empty Client Code');
-          continue;
-        }
-
-        const existing = await ConversionRecord.findOne({
-          linkId: link._id,
-          clientCode,
-        }).select('_id');
-
-        if (existing) {
-          duplicateSkippedCount += 1;
-          continue;
-        }
-
-        const clientName = String(cell(row, 'Client Name')).trim();
-        const mobile = String(cell(row, 'Mobile') || '').trim();
-        const appStatus = String(cell(row, 'App Status')).trim();
-        const utmMedium = String(cell(row, 'UTM Medium')).trim();
-        const utmCampaign = String(cell(row, 'UTM Campaign')).trim();
-
-        const matchedUser = await findUserByUtm(utmMedium, utmCampaign);
-
-        let matchType = 'unmatched';
-        let matchedUserId = null;
-        let isSelfAccount = false;
-        let isPayable = false;
-        let commissionAmount = 0;
-
-        if (matchedUser) {
-          matchType = 'auto';
-          matchedUserId = matchedUser._id;
-          autoMatchedCount += 1;
-
-          const evaluation = evaluateMatch(
-            matchedUser,
-            link,
-            { mobile, appStatus },
-            payableStatuses
-          );
-          isSelfAccount = evaluation.isSelfAccount;
-          isPayable = evaluation.isPayable;
-          commissionAmount = evaluation.commissionAmount;
-
-          if (isSelfAccount) {
-            selfAccountCount += 1;
-          }
-        } else {
-          unmatchedCount += 1;
-        }
-
-        await ConversionRecord.create({
-          uploadBatchId: batch._id,
-          linkId: link._id,
-          clientCode,
-          clientName,
-          mobile,
-          appStatus,
-          utmMedium,
-          utmCampaign,
-          matchedUserId,
-          matchType,
-          isSelfAccount,
-          isPayable,
-          commissionAmount,
-        });
-      } catch (rowError) {
-        console.error('Conversion row processing failed:', rowError);
-      }
+    if (mode === 'manual') {
+      return uploadManualConversionExcel({ req, res, link, rows });
     }
 
-    batch.autoMatchedCount = autoMatchedCount;
-    batch.unmatchedCount = unmatchedCount;
-    batch.selfAccountCount = selfAccountCount;
-    batch.duplicateSkippedCount = duplicateSkippedCount;
-    await batch.save();
-
-    return res.status(201).json({
-      success: true,
-      uploadBatchId: batch._id,
-      totalRows: batch.totalRows,
-      autoMatchedCount,
-      unmatchedCount,
-      selfAccountCount,
-      duplicateSkippedCount,
-    });
+    return uploadAutoConversionExcel({ req, res, link, rows });
   } catch (error) {
     console.error('uploadConversionExcel error:', error);
     return res.status(500).json({
@@ -305,9 +258,365 @@ export async function uploadConversionExcel(req, res) {
   }
 }
 
+async function uploadAutoConversionExcel({ req, res, link, rows }) {
+  const payableStatuses = await Settings.getPayableStatuses();
+
+  const batch = await UploadBatch.create({
+    linkId: link._id,
+    fileName: req.file.originalname || 'upload.xlsx',
+    mode: 'auto',
+    uploadedBy: req.user?._id || null,
+    totalRows: rows.length,
+  });
+
+  let autoMatchedCount = 0;
+  let unmatchedCount = 0;
+  let selfAccountCount = 0;
+  let duplicateSkippedCount = 0;
+
+  for (const row of rows) {
+    try {
+      const clientCode = String(cell(row, 'Client Code')).trim();
+
+      if (!clientCode) {
+        console.warn('Skipping row with empty Client Code');
+        continue;
+      }
+
+      const existing = await ConversionRecord.findOne({
+        linkId: link._id,
+        clientCode,
+      }).select('_id');
+
+      if (existing) {
+        duplicateSkippedCount += 1;
+        continue;
+      }
+
+      const clientName = String(cell(row, 'Client Name')).trim();
+      const mobile = String(cell(row, 'Mobile') || '').trim();
+      const appStatus = String(cell(row, 'App Status')).trim();
+      const utmMedium = String(cell(row, 'UTM Medium')).trim();
+      const utmCampaign = String(cell(row, 'UTM Campaign')).trim();
+
+      const matchedUser = await findUserByUtm(utmMedium, utmCampaign);
+
+      let matchType = 'unmatched';
+      let matchedUserId = null;
+      let isSelfAccount = false;
+      let isPayable = false;
+      let commissionAmount = 0;
+
+      if (matchedUser) {
+        matchType = 'auto';
+        matchedUserId = matchedUser._id;
+        autoMatchedCount += 1;
+
+        const evaluation = evaluateMatch(
+          matchedUser,
+          link,
+          { mobile, appStatus },
+          payableStatuses
+        );
+        isSelfAccount = evaluation.isSelfAccount;
+        isPayable = evaluation.isPayable;
+        commissionAmount = evaluation.commissionAmount;
+
+        if (isSelfAccount) {
+          selfAccountCount += 1;
+        }
+      } else {
+        unmatchedCount += 1;
+      }
+
+      await ConversionRecord.create({
+        uploadBatchId: batch._id,
+        linkId: link._id,
+        uploadMode: 'auto',
+        clientCode,
+        clientName,
+        mobile,
+        appStatus,
+        utmMedium,
+        utmCampaign,
+        matchedUserId,
+        matchType,
+        isSelfAccount,
+        isPayable,
+        commissionAmount,
+      });
+    } catch (rowError) {
+      console.error('Conversion row processing failed:', rowError);
+    }
+  }
+
+  batch.autoMatchedCount = autoMatchedCount;
+  batch.unmatchedCount = unmatchedCount;
+  batch.selfAccountCount = selfAccountCount;
+  batch.duplicateSkippedCount = duplicateSkippedCount;
+  await batch.save();
+
+  return res.status(201).json({
+    success: true,
+    mode: 'auto',
+    uploadBatchId: batch._id,
+    totalRows: batch.totalRows,
+    autoMatchedCount,
+    unmatchedCount,
+    selfAccountCount,
+    duplicateSkippedCount,
+  });
+}
+
+async function uploadManualConversionExcel({ req, res, link, rows }) {
+  const columns = collectExcelColumns(rows);
+
+  const batch = await UploadBatch.create({
+    linkId: link._id,
+    fileName: req.file.originalname || 'upload.xlsx',
+    mode: 'manual',
+    columns,
+    uploadedBy: req.user?._id || null,
+    totalRows: rows.length,
+  });
+
+  let unmatchedCount = 0;
+  let duplicateSkippedCount = 0;
+  let importedCount = 0;
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    try {
+      const rawData = serializeRawRow(row);
+      const detectedClientCode = pickFlexibleField(rawData, [
+        'Client Code',
+        'ClientCode',
+        'Client ID',
+        'ClientId',
+        'Client No',
+        'Account Code',
+        'AccountCode',
+      ]);
+      const clientName = pickFlexibleField(rawData, [
+        'Client Name',
+        'ClientName',
+        'Name',
+        'Customer Name',
+        'CustomerName',
+      ]);
+      const mobile = pickFlexibleField(rawData, [
+        'Mobile',
+        'Mobile No',
+        'Mobile Number',
+        'Phone',
+        'Phone Number',
+        'Contact',
+      ]);
+      const appStatus = pickFlexibleField(rawData, [
+        'App Status',
+        'AppStatus',
+        'Status',
+        'Application Status',
+      ]);
+      const utmMedium = pickFlexibleField(rawData, [
+        'UTM Medium',
+        'Utm Medium',
+        'utm_medium',
+      ]);
+      const utmCampaign = pickFlexibleField(rawData, [
+        'UTM Campaign',
+        'Utm Campaign',
+        'utm_campaign',
+      ]);
+
+      const hasRealClientCode = Boolean(detectedClientCode);
+      const clientCode = hasRealClientCode
+        ? detectedClientCode
+        : `MANUAL:${batch._id}:${index + 1}`;
+
+      if (hasRealClientCode) {
+        const existing = await ConversionRecord.findOne({
+          linkId: link._id,
+          clientCode,
+        }).select('_id');
+
+        if (existing) {
+          duplicateSkippedCount += 1;
+          continue;
+        }
+      }
+
+      await ConversionRecord.create({
+        uploadBatchId: batch._id,
+        linkId: link._id,
+        uploadMode: 'manual',
+        rawData,
+        rowIndex: index + 1,
+        clientCode,
+        clientName,
+        mobile,
+        appStatus,
+        utmMedium,
+        utmCampaign,
+        matchedUserId: null,
+        matchType: 'unmatched',
+        isSelfAccount: false,
+        isPayable: false,
+        commissionAmount: 0,
+      });
+
+      unmatchedCount += 1;
+      importedCount += 1;
+    } catch (rowError) {
+      console.error('Manual conversion row processing failed:', rowError);
+    }
+  }
+
+  batch.unmatchedCount = unmatchedCount;
+  batch.duplicateSkippedCount = duplicateSkippedCount;
+  batch.autoMatchedCount = 0;
+  batch.selfAccountCount = 0;
+  await batch.save();
+
+  return res.status(201).json({
+    success: true,
+    mode: 'manual',
+    uploadBatchId: batch._id,
+    totalRows: batch.totalRows,
+    importedCount,
+    unmatchedCount,
+    duplicateSkippedCount,
+    autoMatchedCount: 0,
+    selfAccountCount: 0,
+    columns,
+  });
+}
+
+export async function listManualBatches(req, res) {
+  try {
+    const batches = await UploadBatch.find({ mode: 'manual' })
+      .populate('linkId', 'name')
+      .sort({ uploadedAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.json({
+      success: true,
+      count: batches.length,
+      batches: batches.map((batch) => ({
+        id: batch._id,
+        fileName: batch.fileName,
+        linkId: batch.linkId?._id || batch.linkId,
+        linkName: batch.linkId?.name || '—',
+        totalRows: batch.totalRows,
+        unmatchedCount: batch.unmatchedCount,
+        duplicateSkippedCount: batch.duplicateSkippedCount,
+        columns: batch.columns || [],
+        uploadedAt: batch.uploadedAt,
+      })),
+    });
+  } catch (error) {
+    console.error('listManualBatches error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to list manual upload batches',
+    });
+  }
+}
+
+export async function getManualBatchDetail(req, res) {
+  try {
+    const { batchId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(batchId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid batch id',
+      });
+    }
+
+    const batch = await UploadBatch.findById(batchId).populate('linkId', 'name').lean();
+
+    if (!batch || batch.mode !== 'manual') {
+      return res.status(404).json({
+        success: false,
+        message: 'Manual upload batch not found',
+      });
+    }
+
+    const statusFilter = String(req.query.status || 'pending').toLowerCase();
+    const recordFilter = {
+      uploadBatchId: batch._id,
+      uploadMode: 'manual',
+    };
+
+    if (statusFilter === 'pending') {
+      recordFilter.matchType = 'unmatched';
+    } else if (statusFilter === 'assigned') {
+      recordFilter.matchType = { $in: ['manual', 'auto'] };
+    } else if (statusFilter === 'ignored') {
+      recordFilter.matchType = 'ignored';
+    }
+
+    const records = await ConversionRecord.find(recordFilter)
+      .populate('matchedUserId', 'fullName mobile referralCode')
+      .sort({ rowIndex: 1, createdAt: 1 })
+      .lean();
+
+    const columns =
+      Array.isArray(batch.columns) && batch.columns.length
+        ? batch.columns
+        : collectExcelColumns(records.map((row) => row.rawData || {}));
+
+    return res.json({
+      success: true,
+      batch: {
+        id: batch._id,
+        fileName: batch.fileName,
+        linkId: batch.linkId?._id || batch.linkId,
+        linkName: batch.linkId?.name || '—',
+        totalRows: batch.totalRows,
+        unmatchedCount: batch.unmatchedCount,
+        duplicateSkippedCount: batch.duplicateSkippedCount,
+        columns,
+        uploadedAt: batch.uploadedAt,
+      },
+      count: records.length,
+      records: records.map((record) => ({
+        id: record._id,
+        rowIndex: record.rowIndex,
+        matchType: record.matchType,
+        clientCode: record.clientCode,
+        clientName: record.clientName,
+        mobile: record.mobile,
+        appStatus: record.appStatus,
+        rawData: record.rawData || {},
+        matchedUser: record.matchedUserId
+          ? {
+              id: record.matchedUserId._id,
+              name: record.matchedUserId.fullName,
+              phone: record.matchedUserId.mobile,
+              referralCode: record.matchedUserId.referralCode,
+            }
+          : null,
+        createdAt: record.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('getManualBatchDetail error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to fetch manual upload batch',
+    });
+  }
+}
+
 export async function getUnmatchedRecords(req, res) {
   try {
-    const filter = { matchType: 'unmatched' };
+    // Auto-upload leftovers only — manual sheets are reviewed on the Manual Review page.
+    const filter = {
+      matchType: 'unmatched',
+      uploadMode: { $ne: 'manual' },
+    };
 
     if (req.query.linkId && mongoose.Types.ObjectId.isValid(req.query.linkId)) {
       filter.linkId = req.query.linkId;
@@ -488,12 +797,34 @@ export async function manuallyMatchRecord(req, res) {
     }
 
     const payableStatuses = await Settings.getPayableStatuses();
+    const mobile =
+      record.mobile ||
+      pickFlexibleField(record.rawData || {}, [
+        'Mobile',
+        'Mobile No',
+        'Mobile Number',
+        'Phone',
+        'Phone Number',
+        'Contact',
+      ]);
+    const appStatus =
+      record.appStatus ||
+      pickFlexibleField(record.rawData || {}, [
+        'App Status',
+        'AppStatus',
+        'Status',
+        'Application Status',
+      ]);
+
     const { isSelfAccount, isPayable, commissionAmount } = evaluateMatch(
       user,
       link,
-      { mobile: record.mobile, appStatus: record.appStatus },
+      { mobile, appStatus },
       payableStatuses
     );
+
+    if (!record.mobile && mobile) record.mobile = mobile;
+    if (!record.appStatus && appStatus) record.appStatus = appStatus;
 
     record.matchedUserId = user._id;
     record.matchType = 'manual';
@@ -501,6 +832,13 @@ export async function manuallyMatchRecord(req, res) {
     record.isPayable = isPayable;
     record.commissionAmount = commissionAmount;
     await record.save();
+
+    if (record.uploadMode === 'manual' && record.uploadBatchId) {
+      await UploadBatch.updateOne(
+        { _id: record.uploadBatchId, unmatchedCount: { $gt: 0 } },
+        { $inc: { unmatchedCount: -1 } }
+      );
+    }
 
     return res.json({
       success: true,
@@ -539,6 +877,13 @@ export async function ignoreRecord(req, res) {
     record.isPayable = false;
     record.commissionAmount = 0;
     await record.save();
+
+    if (record.uploadMode === 'manual' && record.uploadBatchId) {
+      await UploadBatch.updateOne(
+        { _id: record.uploadBatchId, unmatchedCount: { $gt: 0 } },
+        { $inc: { unmatchedCount: -1 } }
+      );
+    }
 
     return res.json({
       success: true,

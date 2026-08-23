@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { apiRequest, getAdminToken } from '../api/client'
 import AdminShell from '../components/AdminShell'
 import './Admin.css'
@@ -10,11 +10,12 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString('en-IN')
 }
 
-async function uploadConversionFile({ file, linkId }) {
+async function uploadConversionFile({ file, linkId, mode }) {
   const token = getAdminToken()
   const formData = new FormData()
   formData.append('file', file)
   formData.append('linkId', linkId)
+  formData.append('mode', mode)
 
   const response = await fetch(`${API_BASE}/api/admin/conversions/upload`, {
     method: 'POST',
@@ -38,9 +39,11 @@ async function uploadConversionFile({ file, linkId }) {
 }
 
 export default function AdminConversionUpload() {
+  const navigate = useNavigate()
   const [links, setLinks] = useState([])
   const [loadingLinks, setLoadingLinks] = useState(true)
   const [linkId, setLinkId] = useState('')
+  const [mode, setMode] = useState('auto')
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
@@ -87,11 +90,18 @@ export default function AdminConversionUpload() {
     setSuccess('')
     setSummary(null)
     try {
-      const result = await uploadConversionFile({ file, linkId })
+      const result = await uploadConversionFile({ file, linkId, mode })
       setSummary(result)
-      setSuccess('Excel processed successfully.')
       setFile(null)
       event.target.reset()
+
+      if (result.mode === 'manual' && result.uploadBatchId) {
+        setSuccess('Excel imported. Opening manual review…')
+        navigate(`/admin/conversions/manual/${result.uploadBatchId}`)
+        return
+      }
+
+      setSuccess('Excel processed successfully (auto-match).')
     } catch (err) {
       setError(err.message || 'Failed to upload Excel')
     } finally {
@@ -103,7 +113,10 @@ export default function AdminConversionUpload() {
     <AdminShell title="Upload Conversions">
       <div className="admin-page-intro">
         <h1>Upload broker MIS Excel</h1>
-        <p>Select a broker link and upload the Excel report to auto-match payable conversions.</p>
+        <p>
+          Choose automatic matching or manual review. Automatic keeps the existing UTM flow;
+          manual shows the sheet as uploaded so you assign each row yourself.
+        </p>
       </div>
 
       <div className="admin-actions" style={{ marginBottom: '1rem' }}>
@@ -112,6 +125,9 @@ export default function AdminConversionUpload() {
         </Link>
         <Link to="/admin/conversions/unmatched" className="admin-btn admin-btn-ghost">
           Review Unmatched
+        </Link>
+        <Link to="/admin/conversions/manual" className="admin-btn admin-btn-ghost">
+          Manual Reviews
         </Link>
       </div>
 
@@ -127,6 +143,44 @@ export default function AdminConversionUpload() {
 
         {!loadingLinks ? (
           <form className="admin-form" onSubmit={handleSubmit}>
+            <fieldset className="admin-mode-fieldset">
+              <legend>Upload method</legend>
+              <label className="admin-mode-option">
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  value="auto"
+                  checked={mode === 'auto'}
+                  onChange={() => setMode('auto')}
+                  disabled={uploading}
+                />
+                <span>
+                  <strong>Automatic</strong>
+                  <small>
+                    Uses fixed broker columns (Client Code, UTM Medium, etc.) and matches
+                    by referral code.
+                  </small>
+                </span>
+              </label>
+              <label className="admin-mode-option">
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  value="manual"
+                  checked={mode === 'manual'}
+                  onChange={() => setMode('manual')}
+                  disabled={uploading}
+                />
+                <span>
+                  <strong>Manual review</strong>
+                  <small>
+                    Any Excel columns are fine. Sheet opens as-is; you search and assign
+                    each row.
+                  </small>
+                </span>
+              </label>
+            </fieldset>
+
             <label>
               Broker / Link
               <select
@@ -158,7 +212,11 @@ export default function AdminConversionUpload() {
               className="admin-btn"
               disabled={uploading || !file || !linkId}
             >
-              {uploading ? 'Uploading...' : 'Upload Excel'}
+              {uploading
+                ? 'Uploading...'
+                : mode === 'manual'
+                  ? 'Upload for Manual Review'
+                  : 'Upload & Auto-Match'}
             </button>
           </form>
         ) : null}
@@ -166,11 +224,12 @@ export default function AdminConversionUpload() {
         {selectedLink ? (
           <p className="admin-section-note" style={{ marginTop: '0.8rem' }}>
             Uploading for: <strong>{selectedLink.linkName}</strong>
+            {mode === 'manual' ? ' · Manual mode (no auto-assign)' : ' · Automatic mode'}
           </p>
         ) : null}
       </div>
 
-      {summary ? (
+      {summary && summary.mode !== 'manual' ? (
         <div className="admin-panel">
           <div className="admin-panel-head">
             <h2 className="admin-section-title">Latest upload summary</h2>

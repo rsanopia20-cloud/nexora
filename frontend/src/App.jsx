@@ -14,6 +14,8 @@ import AdminLinks from './pages/AdminLinks'
 import AdminUserDetail from './pages/AdminUserDetail'
 import AdminUsers from './pages/AdminUsers'
 import AdminUnmatchedConversions from './pages/AdminUnmatchedConversions'
+import AdminManualBatches from './pages/AdminManualBatches'
+import AdminManualBatchReview from './pages/AdminManualBatchReview'
 import Dashboard from './pages/Dashboard'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
@@ -97,6 +99,22 @@ function App() {
               element={
                 <AdminProtectedRoute>
                   <AdminUnmatchedConversions />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/conversions/manual"
+              element={
+                <AdminProtectedRoute>
+                  <AdminManualBatches />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/conversions/manual/:batchId"
+              element={
+                <AdminProtectedRoute>
+                  <AdminManualBatchReview />
                 </AdminProtectedRoute>
               }
             />

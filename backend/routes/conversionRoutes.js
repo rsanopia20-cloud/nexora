@@ -6,9 +6,11 @@ import {
   editConversionRecord,
   getCustomerEarningsDetail,
   getCustomerEarningsSummary,
+  getManualBatchDetail,
   getMyEarnings,
   getUnmatchedRecords,
   ignoreRecord,
+  listManualBatches,
   markCustomerAsPaid,
   manuallyMatchRecord,
   searchUsers,
@@ -44,6 +46,8 @@ router.use(requireAdmin);
 adminUserSearchRouter.use(requireAdmin);
 
 router.get('/unmatched', getUnmatchedRecords);
+router.get('/manual-batches', listManualBatches);
+router.get('/manual-batches/:batchId', getManualBatchDetail);
 router.get('/customers-summary', getCustomerEarningsSummary);
 router.get('/customers/:userId', getCustomerEarningsDetail);
 router.put('/customers/:userId/mark-paid', markCustomerAsPaid);

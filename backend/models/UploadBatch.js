@@ -12,6 +12,18 @@ const uploadBatchSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    /** auto = UTM matching; manual = review sheet as-is and assign by hand */
+    mode: {
+      type: String,
+      enum: ['auto', 'manual'],
+      default: 'auto',
+      index: true,
+    },
+    /** Excel header order preserved for manual review tables */
+    columns: {
+      type: [String],
+      default: [],
+    },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

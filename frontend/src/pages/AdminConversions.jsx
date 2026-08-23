@@ -69,6 +69,9 @@ export default function AdminConversions() {
         <Link to="/admin/conversions/upload" className="admin-btn admin-btn-ghost">
           Upload Excel
         </Link>
+        <Link to="/admin/conversions/manual" className="admin-btn admin-btn-ghost">
+          Manual Reviews
+        </Link>
         <Link to="/admin/conversions/unmatched" className="admin-btn admin-btn-ghost">
           Review Unmatched
         </Link>

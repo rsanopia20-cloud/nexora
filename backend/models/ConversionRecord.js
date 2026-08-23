@@ -14,6 +14,22 @@ const conversionRecordSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    /** Which upload flow created this row (manual batches skip UTM auto-match). */
+    uploadMode: {
+      type: String,
+      enum: ['auto', 'manual'],
+      default: 'auto',
+      index: true,
+    },
+    /** Full Excel row as uploaded (any columns) — used by manual review UI. */
+    rawData: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    rowIndex: {
+      type: Number,
+      default: 0,
+    },
     clientCode: {
       type: String,
       required: true,
