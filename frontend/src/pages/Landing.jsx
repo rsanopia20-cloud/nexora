@@ -100,7 +100,7 @@ export default function Landing() {
         <section className="hero-shell relative flex items-end overflow-hidden text-white" id="top" aria-label="Hero">
           <div className="absolute inset-0" aria-hidden="true">
             <img
-              src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=2400&q=80"
+              src="/nexora-indian-business-hero.png"
               alt=""
               className="h-full w-full object-cover animate-hero-zoom"
             />
@@ -164,7 +164,7 @@ export default function Landing() {
           </div>
           <div className="relative">
             <img
-              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1400&q=80"
+              src="/nexora-indian-empowering-businesses.png"
               alt="Team collaborating on campaigns"
               className="aspect-16/10 w-full object-cover saturate-[0.92] contrast-[1.04] md:aspect-4/5"
             />

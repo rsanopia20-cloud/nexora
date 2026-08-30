@@ -168,7 +168,7 @@ export default function Services() {
         >
           <div className="max-h-80 min-h-64 overflow-hidden md:max-h-none" aria-hidden="true">
             <img
-              src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1600&q=80"
+              src="/nexora-indian-onboarding-team.png"
               alt=""
               className="h-full w-full object-cover saturate-[0.88] contrast-[1.04]"
             />

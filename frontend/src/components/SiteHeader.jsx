@@ -87,7 +87,7 @@ export default function SiteHeader({ onOpenAuth }) {
         <BrandLogo
           to="/"
           size="sm"
-          className="h-9 w-auto max-h-9 rounded-[0.3rem] sm:h-10 sm:max-h-10 lg:h-12 lg:max-h-12"
+          className="h-10 w-auto max-h-10 rounded-[0.3rem] sm:h-11 sm:max-h-11 lg:h-13 lg:max-h-13"
         />
       </div>
 

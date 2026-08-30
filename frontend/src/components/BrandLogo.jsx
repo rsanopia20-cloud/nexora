@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-const LOGO_SRC = '/logo.jpeg'
+const LOGO_SRC = '/nexo%20logo.png'
 
 export default function BrandLogo({
   to = '/',
