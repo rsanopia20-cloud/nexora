@@ -98,8 +98,11 @@ export default function SiteFooter({ onOpenAuth }) {
 
           <div className="flex flex-col items-start gap-2.5">
             <h3 className={colTitleClass}>Contact</h3>
-            <a className={linkClass} href="mailto:support@nexora-marketing.com">
-              support@nexora-marketing.com
+            <a className={linkClass} href="mailto:support@nexorabizworks.com">
+              support@nexorabizworks.com
+            </a>
+            <a className={linkClass} href="mailto:info@nexorabizworks.com">
+              info@nexorabizworks.com
             </a>
             <Link className={linkClass} to="/#contact">
               Partnership queries

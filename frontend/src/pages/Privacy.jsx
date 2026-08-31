@@ -114,7 +114,8 @@ export default function Privacy() {
             <p>
               If someone claiming to represent NEXORA asks for an OTP, PIN, CVV, password, or
               other confidential credential, do not share it. Contact us immediately at{' '}
-              <a href="mailto:support@nexora-marketing.com">support@nexora-marketing.com</a>.
+              <a href="mailto:support@nexorabizworks.com">support@nexorabizworks.com</a> or{' '}
+              <a href="mailto:info@nexorabizworks.com">info@nexorabizworks.com</a>.
             </p>
             <p>
               See the <Link to="/compliance-transparency">Business, Compliance &amp; Transparency Policy</Link>{' '}

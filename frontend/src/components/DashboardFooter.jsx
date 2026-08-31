@@ -23,7 +23,7 @@ export default function DashboardFooter({ onLogout }) {
               compliant.
             </p>
             <a
-              href="mailto:support@nexora-marketing.com"
+              href="mailto:support@nexorabizworks.com,info@nexorabizworks.com"
               className="inline-flex h-[2.45rem] w-full items-center justify-center rounded-[0.4rem] bg-signal px-4.5 text-[0.92rem] font-semibold text-white transition-colors hover:bg-signal-deep sm:w-auto"
             >
               Contact support
@@ -70,8 +70,11 @@ export default function DashboardFooter({ onLogout }) {
 
           <div className="flex flex-col items-start gap-2.5">
             <h3 className={colTitleClass}>Support</h3>
-            <a className={linkClass} href="mailto:support@nexora-marketing.com">
-              support@nexora-marketing.com
+            <a className={linkClass} href="mailto:support@nexorabizworks.com">
+              support@nexorabizworks.com
+            </a>
+            <a className={linkClass} href="mailto:info@nexorabizworks.com">
+              info@nexorabizworks.com
             </a>
             <Link className={linkClass} to="/#contact">
               Partnership queries

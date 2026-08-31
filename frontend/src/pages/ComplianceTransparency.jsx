@@ -206,7 +206,8 @@ export default function ComplianceTransparency() {
             </p>
             <p>
               For complaints, feedback, or suspected misuse of the NEXORA name, contact{' '}
-              <a href="mailto:support@nexora-marketing.com">support@nexora-marketing.com</a>.
+              <a href="mailto:support@nexorabizworks.com">support@nexorabizworks.com</a> or{' '}
+              <a href="mailto:info@nexorabizworks.com">info@nexorabizworks.com</a>.
             </p>
           </section>
 

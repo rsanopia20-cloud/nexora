@@ -271,7 +271,7 @@ export default function Services() {
                 Create account
               </Link>
               <a
-                href="mailto:support@nexora-marketing.com"
+                href="mailto:support@nexorabizworks.com,info@nexorabizworks.com"
                 className="inline-flex h-[2.65rem] items-center justify-center rounded-[0.35rem] border-[1.5px] border-mist bg-transparent px-5 text-[0.94rem] font-semibold text-ink hover:bg-mist/45"
               >
                 Contact operations

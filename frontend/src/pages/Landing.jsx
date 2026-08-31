@@ -394,12 +394,14 @@ export default function Landing() {
                   official support channel. You may also contact us about complaints, feedback, or
                   suspected misuse of the NEXORA name.
                 </p>
-                <a
-                  className="break-all font-display text-[clamp(0.95rem,4vw,1.35rem)] font-extrabold tracking-[-0.03em] text-white hover:underline"
-                  href="mailto:support@nexora-marketing.com"
-                >
-                  support@nexora-marketing.com
-                </a>
+                <div className="flex flex-col items-start gap-1 font-display text-[clamp(0.95rem,4vw,1.35rem)] font-extrabold tracking-[-0.03em]">
+                  <a className="break-all text-white hover:underline" href="mailto:support@nexorabizworks.com">
+                    support@nexorabizworks.com
+                  </a>
+                  <a className="break-all text-white hover:underline" href="mailto:info@nexorabizworks.com">
+                    info@nexorabizworks.com
+                  </a>
+                </div>
               </div>
               <div className="btn-stack md:flex-col">
                 <button
@@ -410,7 +412,7 @@ export default function Landing() {
                   Create account
                 </button>
                 <a
-                  href="mailto:support@nexora-marketing.com"
+                  href="mailto:support@nexorabizworks.com,info@nexorabizworks.com"
                   className="inline-flex h-11 items-center justify-center rounded-[0.4rem] border-[1.5px] border-white/50 px-6 text-[0.94rem] font-semibold text-white hover:border-white hover:bg-white/10"
                 >
                   Email support

@@ -314,7 +314,7 @@ export default function Dashboard() {
                 </div>
               </a>
               <a
-                href="mailto:support@nexora-marketing.com"
+                href="mailto:support@nexorabizworks.com,info@nexorabizworks.com"
                 className="flex items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.35rem] bg-[#0f161f]/8 text-sm font-bold text-ink sm:h-10 sm:w-10">
@@ -380,7 +380,7 @@ export default function Dashboard() {
                 support if you expected an offer.
               </p>
               <a
-                href="mailto:support@nexora-marketing.com"
+                href="mailto:support@nexorabizworks.com,info@nexorabizworks.com"
                 className="inline-flex h-11 w-full items-center justify-center rounded-[0.35rem] bg-signal px-5 text-[0.94rem] font-semibold text-white hover:bg-signal-deep sm:w-auto"
               >
                 Contact support
@@ -733,7 +733,7 @@ export default function Dashboard() {
                 </div>
                 <div className="btn-stack md:!flex-col md:items-stretch">
                   <a
-                    href="mailto:support@nexora-marketing.com"
+                    href="mailto:support@nexorabizworks.com,info@nexorabizworks.com"
                     className="inline-flex h-11 w-full items-center justify-center rounded-[0.35rem] bg-signal px-6 text-[0.94rem] font-semibold text-white hover:bg-signal-deep md:min-w-[11rem]"
                   >
                     Email support
