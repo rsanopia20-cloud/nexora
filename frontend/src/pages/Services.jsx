@@ -146,6 +146,11 @@ export default function Services() {
               Unless expressly stated otherwise, NEXORA does not claim ownership of — or act as the
               issuer/provider of — the underlying third-party product or service.
             </p>
+            <p className="mt-4 max-w-none text-[1rem] leading-relaxed text-muted sm:max-w-[42ch] sm:text-[1.02rem]">
+              Our support may include introducing relevant services, registering users through
+              designated channels, providing procedural guidance, and assisting with the steps
+              required to proceed with an application.
+            </p>
           </div>
           <ul className="m-0 list-none p-0">
             {CAMPAIGN_SUPPORT.map((item, index) => (
@@ -197,6 +202,10 @@ export default function Services() {
               activation, and customer servicing remain under the absolute authority of the
               third-party providers.
             </p>
+            <p className="mt-4 max-w-none text-[0.95rem] leading-relaxed text-[#c5d0de] sm:max-w-[44ch]">
+              NEXORA never requests OTPs, UPI PINs, ATM PINs, card PINs, CVVs, or passwords. Complete
+              authentication steps yourself through the authorized provider’s platform.
+            </p>
           </div>
         </section>
 
@@ -228,9 +237,17 @@ export default function Services() {
               promotional or onboarding activities.
             </p>
           </div>
-          <Link to="/terms" className="mt-6 inline-block text-base font-bold text-teal hover:underline">
-            Read full Terms &amp; Conditions →
-          </Link>
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-base font-bold text-teal">
+            <Link to="/terms" className="hover:underline">
+              Read full Terms &amp; Conditions →
+            </Link>
+            <Link to="/compliance-transparency" className="hover:underline">
+              Read Compliance Policy →
+            </Link>
+            <Link to="/privacy" className="hover:underline">
+              Privacy &amp; Security →
+            </Link>
+          </div>
         </section>
 
         <section

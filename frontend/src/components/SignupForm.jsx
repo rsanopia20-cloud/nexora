@@ -187,6 +187,13 @@ export default function SignupForm({ onSwitchToLogin }) {
           </span>
         </label>
         {errors.acceptedTerms ? <em className="terms-error">{errors.acceptedTerms}</em> : null}
+        <p className="m-0 text-[0.82rem] leading-relaxed text-muted">
+          NEXORA never asks for OTPs, PINs, CVVs, or passwords. Read our{' '}
+          <a href="/privacy" target="_blank" rel="noreferrer">
+            Privacy &amp; Security Notice
+          </a>{' '}
+          before continuing.
+        </p>
 
         <button
           className="btn btn-solid btn-block"

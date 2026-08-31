@@ -19,9 +19,11 @@ import AdminManualBatchReview from './pages/AdminManualBatchReview'
 import Dashboard from './pages/Dashboard'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
+import Privacy from './pages/Privacy'
 import Services from './pages/Services'
 import Signup from './pages/Signup'
 import Terms from './pages/Terms'
+import ComplianceTransparency from './pages/ComplianceTransparency'
 import './App.css'
 
 function App() {
@@ -37,6 +39,8 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/compliance-transparency" element={<ComplianceTransparency />} />
             <Route
               path="/dashboard"
               element={

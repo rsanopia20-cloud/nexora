@@ -60,6 +60,12 @@ export default function DashboardFooter({ onLogout }) {
             <Link className={linkClass} to="/terms">
               Terms &amp; Conditions
             </Link>
+            <Link className={linkClass} to="/compliance-transparency">
+              Compliance &amp; Transparency
+            </Link>
+            <Link className={linkClass} to="/privacy">
+              Privacy &amp; Security
+            </Link>
           </div>
 
           <div className="flex flex-col items-start gap-2.5">

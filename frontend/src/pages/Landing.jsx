@@ -314,6 +314,58 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Compliance & customer safety */}
+        <section
+          className="page-x section-y mx-auto max-w-[1160px]"
+          aria-labelledby="compliance-heading"
+        >
+          <div className="mb-[clamp(2rem,5vh,3rem)] max-w-xl">
+            <p className={eyebrow}>Compliance &amp; customer safety</p>
+            <h2
+              id="compliance-heading"
+              className="m-0 mb-3.5 font-display text-[clamp(1.55rem,5vw,2.65rem)] font-extrabold leading-[1.1] tracking-[-0.035em]"
+            >
+              Clear boundaries. Responsible support.
+            </h2>
+            <p className="m-0 text-[1.05rem] leading-relaxed text-muted">
+              NEXORA is an independent promotional and onboarding-support platform. We do not
+              represent ourselves as a bank, broker, investment adviser, financial institution, or
+              government authority.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-7">
+            <div className="border-t-2 border-teal pt-4">
+              <h3 className="m-0 mb-2 font-display text-[1.05rem] font-bold">Third-party decisions</h3>
+              <p className="m-0 text-[0.98rem] leading-relaxed text-muted">
+                Account approval, KYC, activation, and servicing remain solely with the relevant
+                third-party provider.
+              </p>
+            </div>
+            <div className="border-t-2 border-signal pt-4">
+              <h3 className="m-0 mb-2 font-display text-[1.05rem] font-bold">No sensitive credentials</h3>
+              <p className="m-0 text-[0.98rem] leading-relaxed text-muted">
+                We never ask for OTPs, UPI PINs, card PINs, CVVs, banking passwords, or login
+                passwords.
+              </p>
+            </div>
+            <div className="border-t-2 border-[#c45a3a] pt-4">
+              <h3 className="m-0 mb-2 font-display text-[1.05rem] font-bold">No guarantees</h3>
+              <p className="m-0 text-[0.98rem] leading-relaxed text-muted">
+                Applications and participation do not guarantee approval, income, profits, returns,
+                or any particular financial outcome.
+              </p>
+            </div>
+          </div>
+          <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-base font-bold text-teal">
+            <Link to="/compliance-transparency" className="hover:underline">
+              Read Compliance &amp; Transparency Policy →
+            </Link>
+            <Link to="/privacy" className="hover:underline">
+              Read Privacy &amp; Security Notice →
+            </Link>
+          </div>
+        </section>
+
         {/* Contact */}
         <section className="page-x pb-[clamp(2.5rem,8vh,5rem)]" id="contact" aria-labelledby="contact-heading">
           <div className="relative mx-auto max-w-[1160px] overflow-hidden bg-[#0f161f] text-white">
@@ -339,7 +391,8 @@ export default function Landing() {
                 </h2>
                 <p className="m-0 mb-5 max-w-none text-[1rem] leading-relaxed text-white/75 sm:max-w-[42ch] sm:text-[1.05rem]">
                   For partnership, campaign, or compliance-related queries, reach us through our
-                  official support channel.
+                  official support channel. You may also contact us about complaints, feedback, or
+                  suspected misuse of the NEXORA name.
                 </p>
                 <a
                   className="break-all font-display text-[clamp(0.95rem,4vw,1.35rem)] font-extrabold tracking-[-0.03em] text-white hover:underline"

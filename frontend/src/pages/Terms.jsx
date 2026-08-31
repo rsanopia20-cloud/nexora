@@ -370,6 +370,22 @@ export default function Terms() {
           </p>
         </section>
 
+        <section>
+          <h2>Important Customer Security Notice</h2>
+          <p>
+            NEXORA does not request or collect OTPs, UPI PINs, ATM PINs, debit or credit card PINs,
+            CVVs, internet banking passwords, or login passwords. Customers should never share
+            these confidential credentials with NEXORA representatives or any other person.
+          </p>
+          <p>
+            Complete any OTP or authentication step directly through the relevant authorized
+            third-party platform. For the complete business, compliance, transparency, privacy, and
+            security information, read our{' '}
+            <Link to="/compliance-transparency">Compliance &amp; Transparency Policy</Link> and{' '}
+            <Link to="/privacy">Privacy &amp; Security Notice</Link>.
+          </p>
+        </section>
+
         <p className="legal-footer">© NEXORA / Nexora Bizworks. All Rights Reserved.</p>
         </div>
       </main>

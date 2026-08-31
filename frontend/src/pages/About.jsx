@@ -86,6 +86,10 @@ export default function About() {
               strategies, and customer onboarding — while keeping every activity aligned with
               professional and ethical standards.
             </p>
+            <p className={bodyP}>
+              Our representatives identify their association with NEXORA, provide accurate
+              information, and never guarantee approval, income, profits, or financial returns.
+            </p>
             <p className={`${bodyP} mb-0`}>
               The objective is long-term value for businesses, participants, and customers through
               responsible marketing solutions.
@@ -137,6 +141,11 @@ export default function About() {
             <p className={`${bodyP} mb-0`}>
               We act as a promotional and onboarding-support channel. We are not the owner, issuer,
               bank, broker, lender, insurer, or financial institution behind those products.
+            </p>
+            <p className={`${bodyP} mb-0 mt-4`}>
+              Applications, registrations, verification, approvals, activations, and final decisions
+              remain subject to the policies and independent decisions of the relevant third-party
+              provider.
             </p>
           </div>
           <ol className="m-0 list-none p-0">
@@ -205,6 +214,11 @@ export default function About() {
               provider’s platform. Participants must submit accurate, complete, and up-to-date
               information.
             </p>
+            <p className={`${bodyP} mb-0`}>
+              NEXORA never requests OTPs, UPI PINs, ATM PINs, card PINs, CVVs, internet banking
+              passwords, or login passwords. Complete authentication steps directly through the
+              authorized third-party platform.
+            </p>
             <div className="mt-6 max-w-[40ch] border-t-[3px] border-signal pt-5">
               <p className="m-0 mb-2 font-display text-[0.8rem] font-bold uppercase tracking-[0.1em] text-ink">
                 Security protocol
@@ -240,9 +254,17 @@ export default function About() {
             NEXORA any banking, brokerage, investment-advisory, lending, or insurance license it
             does not legally hold.
           </p>
-          <Link to="/terms" className="text-base font-bold text-teal hover:underline">
-            Read Terms &amp; Conditions →
-          </Link>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-base font-bold text-teal">
+            <Link to="/terms" className="hover:underline">
+              Read Terms &amp; Conditions →
+            </Link>
+            <Link to="/compliance-transparency" className="hover:underline">
+              Read Compliance Policy →
+            </Link>
+            <Link to="/privacy" className="hover:underline">
+              Privacy &amp; Security →
+            </Link>
+          </div>
         </section>
       </main>
 
