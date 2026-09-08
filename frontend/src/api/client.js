@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'nexora_token'
 const ADMIN_TOKEN_KEY = 'nexora_admin_token'
+const MANAGER_TOKEN_KEY = 'nexora_manager_token'
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
@@ -27,6 +28,18 @@ export function clearAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_KEY)
 }
 
+export function getManagerToken() {
+  return localStorage.getItem(MANAGER_TOKEN_KEY)
+}
+
+export function setManagerToken(token) {
+  localStorage.setItem(MANAGER_TOKEN_KEY, token)
+}
+
+export function clearManagerToken() {
+  localStorage.removeItem(MANAGER_TOKEN_KEY)
+}
+
 export async function apiRequest(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -34,7 +47,12 @@ export async function apiRequest(path, options = {}) {
   }
 
   const isAdminApi = path.startsWith('/api/admin')
-  const token = isAdminApi ? getAdminToken() : getToken()
+  const isManagerApi = path.startsWith('/api/manager')
+  const token = isAdminApi
+    ? getAdminToken()
+    : isManagerApi
+      ? getManagerToken()
+      : getToken()
   if (token) {
     headers.Authorization = `Bearer ${token}`
   }

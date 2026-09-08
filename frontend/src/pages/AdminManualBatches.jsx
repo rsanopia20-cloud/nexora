@@ -51,17 +51,14 @@ export default function AdminManualBatches() {
       <div className="admin-page-intro">
         <h1>Manual Excel reviews</h1>
         <p>
-          Sheets uploaded in Manual mode. Open a batch to see every column as in Excel and
-          assign customers row by row.
+          Sheets uploaded in Manual mode. Open a batch to view every column as in Excel and see
+          which accounts users have claimed. Users claim their own Ready To Trade accounts.
         </p>
       </div>
 
       <div className="admin-actions" style={{ marginBottom: '1rem' }}>
         <Link to="/admin/conversions/upload" className="admin-btn">
           New Upload
-        </Link>
-        <Link to="/admin/conversions/unmatched" className="admin-btn admin-btn-ghost">
-          Auto Unmatched
         </Link>
       </div>
 
@@ -87,7 +84,7 @@ export default function AdminManualBatches() {
                   <th>File</th>
                   <th>Link</th>
                   <th>Rows</th>
-                  <th>Still pending</th>
+                  <th>Unclaimed</th>
                   <th>Uploaded</th>
                   <th>Actions</th>
                 </tr>
@@ -102,7 +99,7 @@ export default function AdminManualBatches() {
                     <td className="admin-num" data-label="Rows">
                       {batch.totalRows}
                     </td>
-                    <td className="admin-num" data-label="Still pending">
+                    <td className="admin-num" data-label="Unclaimed">
                       {batch.unmatchedCount}
                     </td>
                     <td data-label="Uploaded">{formatDate(batch.uploadedAt)}</td>

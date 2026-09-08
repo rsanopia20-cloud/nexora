@@ -71,3 +71,40 @@ export function clearAdminCookie(res) {
     path: '/',
   });
 }
+
+export function signManagerToken(manager) {
+  const secret = process.env.JWT_SECRET;
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+
+  if (!secret) {
+    throw new Error('JWT_SECRET is not set in environment variables');
+  }
+
+  const managerId = manager?._id ?? manager;
+
+  return jwt.sign({ typ: 'manager', sub: managerId }, secret, { expiresIn });
+}
+
+export function setManagerCookie(res, token) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const maxAgeMs = 7 * 24 * 60 * 60 * 1000;
+
+  res.cookie('manager_token', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: maxAgeMs,
+    path: '/',
+  });
+}
+
+export function clearManagerCookie(res) {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  res.clearCookie('manager_token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+  });
+}

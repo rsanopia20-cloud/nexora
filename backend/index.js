@@ -16,6 +16,8 @@ import conversionRoutes, {
   adminUserSearchRouter,
   userConversionRouter,
 } from './routes/conversionRoutes.js';
+import managerAdminRoutes from './routes/managerAdminRoutes.js';
+import managerAuthRoutes from './routes/managerAuthRoutes.js';
 
 dotenv.config();
 
@@ -96,8 +98,10 @@ app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin/links', linkRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/admin/users', adminUserSearchRouter);
+app.use('/api/admin/managers', managerAdminRoutes);
 app.use('/api/admin/conversions', conversionRoutes);
 app.use('/api/conversions', userConversionRouter);
+app.use('/api/manager', managerAuthRoutes);
 // Public tracking redirects — must NOT sit behind JWT auth
 // Mounted at / so /t/:token (legacy) and /l/:code (short) both work
 app.use('/', trackingRoutes);

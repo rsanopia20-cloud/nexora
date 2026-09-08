@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -56,6 +56,213 @@ const GUIDELINES = [
   'Contact support for campaign or compliance questions before sharing sensitive data elsewhere.',
 ]
 
+const CLAIM_STATUS_LABEL = {
+  not_ready: 'Not Ready To Trade',
+  unavailable: 'Already claimed',
+  claimed_by_you: 'Claimed by you',
+  self: 'Your own account',
+}
+
+function ClaimPanel({ onClaimed }) {
+  const [links, setLinks] = useState([])
+  const [linkId, setLinkId] = useState('')
+  const [query, setQuery] = useState('')
+  const [managerId, setManagerId] = useState('')
+  const [results, setResults] = useState(null)
+  const [searching, setSearching] = useState(false)
+  const [error, setError] = useState('')
+  const [claimingId, setClaimingId] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadLinks() {
+      try {
+        const data = await apiRequest('/api/conversions/claim/links')
+        if (!cancelled) setLinks(data.links || [])
+      } catch {
+        if (!cancelled) setLinks([])
+      }
+    }
+    loadLinks()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function handleSearch(event) {
+    event.preventDefault()
+    const trimmed = query.trim()
+    if (!linkId) {
+      setError('Please select a link first.')
+      return
+    }
+    if (!trimmed) {
+      setError('Enter a full mobile number or client id.')
+      return
+    }
+    setSearching(true)
+    setError('')
+    setResults(null)
+    try {
+      const data = await apiRequest(
+        `/api/conversions/claim/search?linkId=${encodeURIComponent(
+          linkId
+        )}&query=${encodeURIComponent(trimmed)}`
+      )
+      setResults(data.records || [])
+    } catch (err) {
+      setError(err.message || 'Search failed')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  async function handleClaim(record) {
+    const code = managerId.trim().toUpperCase()
+    if (!code) {
+      setError('Enter your Manager ID before claiming.')
+      return
+    }
+
+    setClaimingId(record.id)
+    setError('')
+    try {
+      const data = await apiRequest('/api/conversions/claim', {
+        method: 'POST',
+        body: JSON.stringify({ recordId: record.id, managerId: code }),
+      })
+      setResults((prev) =>
+        (prev || []).map((item) =>
+          item.id === record.id
+            ? {
+                ...item,
+                status: 'claimed_by_you',
+                claimable: false,
+                amount: Number(data.amount ?? item.amount),
+              }
+            : item
+        )
+      )
+      if (onClaimed) onClaimed()
+    } catch (err) {
+      setError(err.message || 'Unable to claim this account')
+    } finally {
+      setClaimingId('')
+    }
+  }
+
+  return (
+    <div className="mb-5 rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
+      <h3 className="m-0 mb-1 text-[1rem] font-bold tracking-[-0.02em] sm:text-[1.05rem]">
+        Claim your earnings
+      </h3>
+      <p className="m-0 mb-4 text-[0.88rem] leading-relaxed text-muted">
+        Choose the campaign link, enter the full mobile number or client id, and enter your Manager
+        ID. Ready To Trade accounts can be claimed once.
+      </p>
+
+      <form
+        onSubmit={handleSearch}
+        className="flex flex-col gap-2.5"
+      >
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+          <select
+            value={linkId}
+            onChange={(event) => setLinkId(event.target.value)}
+            className="h-11 rounded-[0.35rem] border border-mist bg-white px-3 text-[0.92rem] font-semibold text-ink outline-none focus:border-teal sm:max-w-[16rem]"
+          >
+            <option value="">Select a link…</option>
+            {links.map((link) => (
+              <option key={link.id} value={link.id}>
+                {link.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Full mobile number or client id"
+            className="h-11 flex-1 rounded-[0.35rem] border border-mist bg-white px-3 text-[0.92rem] text-ink outline-none focus:border-teal"
+          />
+          <button
+            type="submit"
+            disabled={searching}
+            className="inline-flex h-11 items-center justify-center rounded-[0.35rem] bg-signal px-5 text-[0.92rem] font-semibold text-white hover:bg-signal-deep disabled:opacity-70"
+          >
+            {searching ? 'Searching…' : 'Search'}
+          </button>
+        </div>
+        <input
+          type="text"
+          value={managerId}
+          onChange={(event) => setManagerId(event.target.value.toUpperCase())}
+          placeholder="Manager ID (required to claim)"
+          className="h-11 w-full rounded-[0.35rem] border border-mist bg-white px-3 text-[0.92rem] text-ink outline-none focus:border-teal sm:max-w-[20rem]"
+          autoComplete="off"
+        />
+      </form>
+
+      {error ? (
+        <p className="m-0 mt-3 text-[0.88rem] font-semibold text-signal-deep">{error}</p>
+      ) : null}
+
+      {results && !results.length ? (
+        <p className="m-0 mt-4 text-[0.9rem] text-muted">
+          No account found for this link and search. Check the number/client id and try again.
+        </p>
+      ) : null}
+
+      {results && results.length ? (
+        <ul className="m-0 mt-4 flex list-none flex-col gap-2.5 p-0">
+          {results.map((record) => (
+            <li
+              key={record.id}
+              className="flex flex-col gap-2 rounded-[0.4rem] border border-mist bg-paper/40 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="m-0 text-[0.95rem] font-bold tracking-[-0.02em]">
+                  {record.clientName || 'Referred account'}
+                </p>
+                <p className="m-0 mt-0.5 text-[0.82rem] text-muted">
+                  {record.mobile ? `${record.mobile} · ` : ''}
+                  {record.clientCode ? `${record.clientCode} · ` : ''}
+                  Status: {record.appStatus || '—'}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="text-[0.95rem] font-bold text-ink">
+                  {formatCurrency(record.amount)}
+                </span>
+                {record.claimable ? (
+                  <button
+                    type="button"
+                    onClick={() => handleClaim(record)}
+                    disabled={claimingId === record.id}
+                    className="inline-flex h-9 items-center justify-center rounded-[0.35rem] bg-teal px-4 text-[0.88rem] font-semibold text-white hover:opacity-90 disabled:opacity-70"
+                  >
+                    {claimingId === record.id ? 'Claiming…' : 'Claim'}
+                  </button>
+                ) : (
+                  <span
+                    className={`inline-flex items-center rounded-[0.25rem] px-2.5 py-1 text-[0.72rem] font-bold uppercase tracking-[0.05em] ${
+                      record.status === 'claimed_by_you'
+                        ? 'bg-teal/12 text-teal'
+                        : 'bg-[#eef1f5] text-muted'
+                    }`}
+                  >
+                    {CLAIM_STATUS_LABEL[record.status] || 'Unavailable'}
+                  </span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -88,27 +295,22 @@ export default function Dashboard() {
     return () => window.clearTimeout(timer)
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadEarnings() {
-      setEarningsLoading(true)
-      setEarningsError('')
-      try {
-        const data = await apiRequest('/api/conversions/me')
-        if (!cancelled) setEarnings(data)
-      } catch (err) {
-        if (!cancelled) setEarningsError(err.message || 'Failed to load earnings')
-      } finally {
-        if (!cancelled) setEarningsLoading(false)
-      }
-    }
-
-    loadEarnings()
-    return () => {
-      cancelled = true
+  const loadEarnings = useCallback(async () => {
+    setEarningsLoading(true)
+    setEarningsError('')
+    try {
+      const data = await apiRequest('/api/conversions/me')
+      setEarnings(data)
+    } catch (err) {
+      setEarningsError(err.message || 'Failed to load earnings')
+    } finally {
+      setEarningsLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    loadEarnings()
+  }, [loadEarnings])
 
   useEffect(() => {
     let cancelled = false
@@ -496,6 +698,8 @@ export default function Dashboard() {
               {earningsError}
             </div>
           ) : null}
+
+          <ClaimPanel onClaimed={loadEarnings} />
 
           {!earningsLoading && !earningsError ? (
             <>

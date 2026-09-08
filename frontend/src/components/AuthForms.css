@@ -151,6 +151,11 @@
   text-decoration: underline;
 }
 
+.auth-switch-sep {
+  margin: 0 0.45rem;
+  color: var(--mist);
+}
+
 .auth-modal-overlay {
   position: fixed;
   inset: 0;

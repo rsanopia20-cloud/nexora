@@ -12,14 +12,24 @@ const NAV_ITEMS = [
   { to: '/admin/links', label: 'Manage Links', match: (path) => path.startsWith('/admin/links') },
   { to: '/admin/users', label: 'Users', match: (path) => path.startsWith('/admin/users') },
   {
+    to: '/admin/managers',
+    label: 'Managers',
+    match: (path) => path.startsWith('/admin/managers'),
+  },
+  {
     to: '/admin/conversions',
     label: 'Earnings',
     match: (path) =>
       path === '/admin/conversions' ||
-      (path !== '/admin/conversions/unmatched' &&
-        path !== '/admin/conversions/upload' &&
+      (path !== '/admin/conversions/upload' &&
         !path.startsWith('/admin/conversions/manual') &&
+        !path.startsWith('/admin/manager-earnings') &&
         /^\/admin\/conversions\/[^/]+$/.test(path)),
+  },
+  {
+    to: '/admin/manager-earnings',
+    label: 'Mgr Earnings',
+    match: (path) => path.startsWith('/admin/manager-earnings'),
   },
   {
     to: '/admin/conversions/upload',
@@ -28,13 +38,8 @@ const NAV_ITEMS = [
   },
   {
     to: '/admin/conversions/manual',
-    label: 'Manual',
+    label: 'Sheets',
     match: (path) => path.startsWith('/admin/conversions/manual'),
-  },
-  {
-    to: '/admin/conversions/unmatched',
-    label: 'Unmatched',
-    match: (path) => path === '/admin/conversions/unmatched',
   },
   { to: '/', label: 'Site', match: () => false },
 ]

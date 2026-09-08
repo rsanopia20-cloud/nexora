@@ -6,16 +6,11 @@ import './Admin.css'
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
-function formatNumber(value) {
-  return Number(value || 0).toLocaleString('en-IN')
-}
-
-async function uploadConversionFile({ file, linkId, mode }) {
+async function uploadConversionFile({ file, linkId }) {
   const token = getAdminToken()
   const formData = new FormData()
   formData.append('file', file)
   formData.append('linkId', linkId)
-  formData.append('mode', mode)
 
   const response = await fetch(`${API_BASE}/api/admin/conversions/upload`, {
     method: 'POST',
@@ -43,12 +38,10 @@ export default function AdminConversionUpload() {
   const [links, setLinks] = useState([])
   const [loadingLinks, setLoadingLinks] = useState(true)
   const [linkId, setLinkId] = useState('')
-  const [mode, setMode] = useState('auto')
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [summary, setSummary] = useState(null)
 
   const selectedLink = useMemo(
     () => links.find((link) => String(link.linkId) === String(linkId)),
@@ -88,20 +81,18 @@ export default function AdminConversionUpload() {
     setUploading(true)
     setError('')
     setSuccess('')
-    setSummary(null)
     try {
-      const result = await uploadConversionFile({ file, linkId, mode })
-      setSummary(result)
+      const result = await uploadConversionFile({ file, linkId })
       setFile(null)
       event.target.reset()
 
-      if (result.mode === 'manual' && result.uploadBatchId) {
-        setSuccess('Excel imported. Opening manual review…')
+      if (result.uploadBatchId) {
+        setSuccess('Excel imported. Opening the sheet…')
         navigate(`/admin/conversions/manual/${result.uploadBatchId}`)
         return
       }
 
-      setSuccess('Excel processed successfully (auto-match).')
+      setSuccess('Excel imported successfully.')
     } catch (err) {
       setError(err.message || 'Failed to upload Excel')
     } finally {
@@ -114,8 +105,8 @@ export default function AdminConversionUpload() {
       <div className="admin-page-intro">
         <h1>Upload broker MIS Excel</h1>
         <p>
-          Choose automatic matching or manual review. Automatic keeps the existing UTM flow;
-          manual shows the sheet as uploaded so you assign each row yourself.
+          Upload the broker sheet for a link. Any columns are fine — it&apos;s imported as-is.
+          Users then claim their own Ready To Trade accounts by phone number or client id.
         </p>
       </div>
 
@@ -123,11 +114,8 @@ export default function AdminConversionUpload() {
         <Link to="/admin/conversions" className="admin-btn admin-btn-ghost">
           View Earnings
         </Link>
-        <Link to="/admin/conversions/unmatched" className="admin-btn admin-btn-ghost">
-          Review Unmatched
-        </Link>
         <Link to="/admin/conversions/manual" className="admin-btn admin-btn-ghost">
-          Manual Reviews
+          Uploaded Sheets
         </Link>
       </div>
 
@@ -143,44 +131,6 @@ export default function AdminConversionUpload() {
 
         {!loadingLinks ? (
           <form className="admin-form" onSubmit={handleSubmit}>
-            <fieldset className="admin-mode-fieldset">
-              <legend>Upload method</legend>
-              <label className="admin-mode-option">
-                <input
-                  type="radio"
-                  name="uploadMode"
-                  value="auto"
-                  checked={mode === 'auto'}
-                  onChange={() => setMode('auto')}
-                  disabled={uploading}
-                />
-                <span>
-                  <strong>Automatic</strong>
-                  <small>
-                    Uses fixed broker columns (Client Code, UTM Medium, etc.) and matches
-                    by referral code.
-                  </small>
-                </span>
-              </label>
-              <label className="admin-mode-option">
-                <input
-                  type="radio"
-                  name="uploadMode"
-                  value="manual"
-                  checked={mode === 'manual'}
-                  onChange={() => setMode('manual')}
-                  disabled={uploading}
-                />
-                <span>
-                  <strong>Manual review</strong>
-                  <small>
-                    Any Excel columns are fine. Sheet opens as-is; you search and assign
-                    each row.
-                  </small>
-                </span>
-              </label>
-            </fieldset>
-
             <label>
               Broker / Link
               <select
@@ -212,11 +162,7 @@ export default function AdminConversionUpload() {
               className="admin-btn"
               disabled={uploading || !file || !linkId}
             >
-              {uploading
-                ? 'Uploading...'
-                : mode === 'manual'
-                  ? 'Upload for Manual Review'
-                  : 'Upload & Auto-Match'}
+              {uploading ? 'Uploading...' : 'Upload Sheet'}
             </button>
           </form>
         ) : null}
@@ -224,41 +170,9 @@ export default function AdminConversionUpload() {
         {selectedLink ? (
           <p className="admin-section-note" style={{ marginTop: '0.8rem' }}>
             Uploading for: <strong>{selectedLink.linkName}</strong>
-            {mode === 'manual' ? ' · Manual mode (no auto-assign)' : ' · Automatic mode'}
           </p>
         ) : null}
       </div>
-
-      {summary && summary.mode !== 'manual' ? (
-        <div className="admin-panel">
-          <div className="admin-panel-head">
-            <h2 className="admin-section-title">Latest upload summary</h2>
-            <p className="admin-section-note">Batch ID: {summary.uploadBatchId}</p>
-          </div>
-          <div className="admin-meta">
-            <div className="admin-meta-card">
-              <span>Total rows</span>
-              <strong>{formatNumber(summary.totalRows)}</strong>
-            </div>
-            <div className="admin-meta-card">
-              <span>Auto matched</span>
-              <strong>{formatNumber(summary.autoMatchedCount)}</strong>
-            </div>
-            <div className="admin-meta-card">
-              <span>Unmatched</span>
-              <strong>{formatNumber(summary.unmatchedCount)}</strong>
-            </div>
-            <div className="admin-meta-card">
-              <span>Self account</span>
-              <strong>{formatNumber(summary.selfAccountCount)}</strong>
-            </div>
-            <div className="admin-meta-card">
-              <span>Duplicate skipped</span>
-              <strong>{formatNumber(summary.duplicateSkippedCount)}</strong>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </AdminShell>
   )
 }

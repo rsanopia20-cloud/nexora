@@ -1,43 +1,21 @@
 import mongoose from 'mongoose';
 import * as XLSX from 'xlsx';
-import Link from '../models/Link.js';
+import Link, { LINK_SORT } from '../models/Link.js';
 import User from '../models/User.js';
 import Settings from '../models/Settings.js';
 import UploadBatch from '../models/UploadBatch.js';
 import ConversionRecord from '../models/ConversionRecord.js';
-import { evaluateMatch } from '../utils/matchEvaluation.js';
+import {
+  evaluateMatch,
+  isPayableAppStatus,
+  mobilesMatch,
+  normalizeMobileLast10,
+  splitCommission,
+} from '../utils/matchEvaluation.js';
+import Manager from '../models/Manager.js';
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Case-insensitive referral match against UTM Medium or UTM Campaign.
- */
-async function findUserByUtm(utmMedium, utmCampaign) {
-  const candidates = [utmMedium, utmCampaign]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean);
-
-  for (const candidate of candidates) {
-    const user = await User.findOne({
-      referralCode: { $regex: new RegExp(`^${escapeRegex(candidate)}$`, 'i') },
-    }).select('_id mobile referralCode');
-
-    if (user) {
-      return user;
-    }
-  }
-
-  return null;
-}
-
-function cell(row, key) {
-  const value = row[key];
-  if (value === undefined || value === null) {
-    return '';
-  }
-  return value;
 }
 
 function normalizeHeaderKey(value) {
@@ -202,10 +180,6 @@ async function buildEarningsDetail(
 export async function uploadConversionExcel(req, res) {
   try {
     const { linkId } = req.body;
-    const mode =
-      String(req.body.mode || 'auto').trim().toLowerCase() === 'manual'
-        ? 'manual'
-        : 'auto';
 
     if (!req.file?.buffer) {
       return res.status(400).json({
@@ -244,11 +218,7 @@ export async function uploadConversionExcel(req, res) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-    if (mode === 'manual') {
-      return uploadManualConversionExcel({ req, res, link, rows });
-    }
-
-    return uploadAutoConversionExcel({ req, res, link, rows });
+    return uploadManualConversionExcel({ req, res, link, rows });
   } catch (error) {
     console.error('uploadConversionExcel error:', error);
     return res.status(500).json({
@@ -256,116 +226,6 @@ export async function uploadConversionExcel(req, res) {
       message: 'Unable to process conversion upload',
     });
   }
-}
-
-async function uploadAutoConversionExcel({ req, res, link, rows }) {
-  const payableStatuses = await Settings.getPayableStatuses();
-
-  const batch = await UploadBatch.create({
-    linkId: link._id,
-    fileName: req.file.originalname || 'upload.xlsx',
-    mode: 'auto',
-    uploadedBy: req.user?._id || null,
-    totalRows: rows.length,
-  });
-
-  let autoMatchedCount = 0;
-  let unmatchedCount = 0;
-  let selfAccountCount = 0;
-  let duplicateSkippedCount = 0;
-
-  for (const row of rows) {
-    try {
-      const clientCode = String(cell(row, 'Client Code')).trim();
-
-      if (!clientCode) {
-        console.warn('Skipping row with empty Client Code');
-        continue;
-      }
-
-      const existing = await ConversionRecord.findOne({
-        linkId: link._id,
-        clientCode,
-      }).select('_id');
-
-      if (existing) {
-        duplicateSkippedCount += 1;
-        continue;
-      }
-
-      const clientName = String(cell(row, 'Client Name')).trim();
-      const mobile = String(cell(row, 'Mobile') || '').trim();
-      const appStatus = String(cell(row, 'App Status')).trim();
-      const utmMedium = String(cell(row, 'UTM Medium')).trim();
-      const utmCampaign = String(cell(row, 'UTM Campaign')).trim();
-
-      const matchedUser = await findUserByUtm(utmMedium, utmCampaign);
-
-      let matchType = 'unmatched';
-      let matchedUserId = null;
-      let isSelfAccount = false;
-      let isPayable = false;
-      let commissionAmount = 0;
-
-      if (matchedUser) {
-        matchType = 'auto';
-        matchedUserId = matchedUser._id;
-        autoMatchedCount += 1;
-
-        const evaluation = evaluateMatch(
-          matchedUser,
-          link,
-          { mobile, appStatus },
-          payableStatuses
-        );
-        isSelfAccount = evaluation.isSelfAccount;
-        isPayable = evaluation.isPayable;
-        commissionAmount = evaluation.commissionAmount;
-
-        if (isSelfAccount) {
-          selfAccountCount += 1;
-        }
-      } else {
-        unmatchedCount += 1;
-      }
-
-      await ConversionRecord.create({
-        uploadBatchId: batch._id,
-        linkId: link._id,
-        uploadMode: 'auto',
-        clientCode,
-        clientName,
-        mobile,
-        appStatus,
-        utmMedium,
-        utmCampaign,
-        matchedUserId,
-        matchType,
-        isSelfAccount,
-        isPayable,
-        commissionAmount,
-      });
-    } catch (rowError) {
-      console.error('Conversion row processing failed:', rowError);
-    }
-  }
-
-  batch.autoMatchedCount = autoMatchedCount;
-  batch.unmatchedCount = unmatchedCount;
-  batch.selfAccountCount = selfAccountCount;
-  batch.duplicateSkippedCount = duplicateSkippedCount;
-  await batch.save();
-
-  return res.status(201).json({
-    success: true,
-    mode: 'auto',
-    uploadBatchId: batch._id,
-    totalRows: batch.totalRows,
-    autoMatchedCount,
-    unmatchedCount,
-    selfAccountCount,
-    duplicateSkippedCount,
-  });
 }
 
 async function uploadManualConversionExcel({ req, res, link, rows }) {
@@ -455,6 +315,7 @@ async function uploadManualConversionExcel({ req, res, link, rows }) {
         clientCode,
         clientName,
         mobile,
+        mobileNormalized: normalizeMobileLast10(mobile),
         appStatus,
         utmMedium,
         utmCampaign,
@@ -552,7 +413,7 @@ export async function getManualBatchDetail(req, res) {
     if (statusFilter === 'pending') {
       recordFilter.matchType = 'unmatched';
     } else if (statusFilter === 'assigned') {
-      recordFilter.matchType = { $in: ['manual', 'auto'] };
+      recordFilter.matchType = { $in: ['manual', 'auto', 'claimed'] };
     } else if (statusFilter === 'ignored') {
       recordFilter.matchType = 'ignored';
     }
@@ -589,6 +450,9 @@ export async function getManualBatchDetail(req, res) {
         clientName: record.clientName,
         mobile: record.mobile,
         appStatus: record.appStatus,
+        isPayable: Boolean(record.isPayable),
+        commissionAmount: Number(record.commissionAmount || 0),
+        claimedAt: record.claimedAt || null,
         rawData: record.rawData || {},
         matchedUser: record.matchedUserId
           ? {
@@ -606,44 +470,6 @@ export async function getManualBatchDetail(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to fetch manual upload batch',
-    });
-  }
-}
-
-export async function getUnmatchedRecords(req, res) {
-  try {
-    // Auto-upload leftovers only — manual sheets are reviewed on the Manual Review page.
-    const filter = {
-      matchType: 'unmatched',
-      uploadMode: { $ne: 'manual' },
-    };
-
-    if (req.query.linkId && mongoose.Types.ObjectId.isValid(req.query.linkId)) {
-      filter.linkId = req.query.linkId;
-    }
-
-    if (
-      req.query.uploadBatchId &&
-      mongoose.Types.ObjectId.isValid(req.query.uploadBatchId)
-    ) {
-      filter.uploadBatchId = req.query.uploadBatchId;
-    }
-
-    const records = await ConversionRecord.find(filter)
-      .populate('linkId', 'name')
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return res.json({
-      success: true,
-      count: records.length,
-      records,
-    });
-  } catch (error) {
-    console.error('getUnmatchedRecords error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to fetch unmatched records',
     });
   }
 }
@@ -747,153 +573,6 @@ export async function updateUserReferralCode(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to update referral code',
-    });
-  }
-}
-
-export async function manuallyMatchRecord(req, res) {
-  try {
-    const { userId } = req.body;
-
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'A valid userId is required',
-      });
-    }
-
-    const record = await ConversionRecord.findById(req.params.id);
-
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        message: 'Conversion record not found',
-      });
-    }
-
-    if (record.matchType !== 'unmatched') {
-      return res.status(400).json({
-        success: false,
-        message: 'Only unmatched records can be manually assigned',
-      });
-    }
-
-    const user = await User.findById(userId).select('_id fullName mobile referralCode');
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'User not found for the provided userId',
-      });
-    }
-
-    const link = await Link.findById(record.linkId);
-
-    if (!link) {
-      return res.status(400).json({
-        success: false,
-        message: 'Associated link not found',
-      });
-    }
-
-    const payableStatuses = await Settings.getPayableStatuses();
-    const mobile =
-      record.mobile ||
-      pickFlexibleField(record.rawData || {}, [
-        'Mobile',
-        'Mobile No',
-        'Mobile Number',
-        'Phone',
-        'Phone Number',
-        'Contact',
-      ]);
-    const appStatus =
-      record.appStatus ||
-      pickFlexibleField(record.rawData || {}, [
-        'App Status',
-        'AppStatus',
-        'Status',
-        'Application Status',
-      ]);
-
-    const { isSelfAccount, isPayable, commissionAmount } = evaluateMatch(
-      user,
-      link,
-      { mobile, appStatus },
-      payableStatuses
-    );
-
-    if (!record.mobile && mobile) record.mobile = mobile;
-    if (!record.appStatus && appStatus) record.appStatus = appStatus;
-
-    record.matchedUserId = user._id;
-    record.matchType = 'manual';
-    record.isSelfAccount = isSelfAccount;
-    record.isPayable = isPayable;
-    record.commissionAmount = commissionAmount;
-    await record.save();
-
-    if (record.uploadMode === 'manual' && record.uploadBatchId) {
-      await UploadBatch.updateOne(
-        { _id: record.uploadBatchId, unmatchedCount: { $gt: 0 } },
-        { $inc: { unmatchedCount: -1 } }
-      );
-    }
-
-    return res.json({
-      success: true,
-      record,
-    });
-  } catch (error) {
-    console.error('manuallyMatchRecord error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to assign conversion record',
-    });
-  }
-}
-
-export async function ignoreRecord(req, res) {
-  try {
-    const record = await ConversionRecord.findById(req.params.id);
-
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        message: 'Conversion record not found',
-      });
-    }
-
-    if (record.matchType !== 'unmatched') {
-      return res.status(400).json({
-        success: false,
-        message: 'Only unmatched records can be ignored',
-      });
-    }
-
-    record.matchType = 'ignored';
-    record.matchedUserId = null;
-    record.isSelfAccount = false;
-    record.isPayable = false;
-    record.commissionAmount = 0;
-    await record.save();
-
-    if (record.uploadMode === 'manual' && record.uploadBatchId) {
-      await UploadBatch.updateOne(
-        { _id: record.uploadBatchId, unmatchedCount: { $gt: 0 } },
-        { $inc: { unmatchedCount: -1 } }
-      );
-    }
-
-    return res.json({
-      success: true,
-      record,
-    });
-  } catch (error) {
-    console.error('ignoreRecord error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to ignore conversion record',
     });
   }
 }
@@ -1062,6 +741,301 @@ export async function markCustomerAsPaid(req, res) {
   }
 }
 
+export async function getManagerEarningsSummary(_req, res) {
+  try {
+    const summary = await ConversionRecord.aggregate([
+      {
+        $match: {
+          matchedManagerId: { $ne: null },
+          matchType: 'claimed',
+          managerCommissionAmount: { $gt: 0 },
+        },
+      },
+      {
+        $group: {
+          _id: '$matchedManagerId',
+          totalAccounts: { $sum: 1 },
+          totalEarned: { $sum: '$managerCommissionAmount' },
+          totalPaid: {
+            $sum: {
+              $cond: [
+                { $eq: ['$managerPaidStatus', true] },
+                '$managerCommissionAmount',
+                0,
+              ],
+            },
+          },
+          totalPending: {
+            $sum: {
+              $cond: [
+                { $eq: ['$managerPaidStatus', false] },
+                '$managerCommissionAmount',
+                0,
+              ],
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'managers',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'manager',
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          managerId: '$_id',
+          totalAccounts: 1,
+          totalEarned: 1,
+          totalPaid: 1,
+          totalPending: 1,
+          name: {
+            $ifNull: [{ $arrayElemAt: ['$manager.fullName', 0] }, 'Unknown manager'],
+          },
+          code: {
+            $ifNull: [{ $arrayElemAt: ['$manager.managerId', 0] }, ''],
+          },
+          phone: {
+            $ifNull: [{ $arrayElemAt: ['$manager.mobile', 0] }, ''],
+          },
+          active: {
+            $ifNull: [{ $arrayElemAt: ['$manager.active', 0] }, false],
+          },
+        },
+      },
+      { $sort: { totalPending: -1, totalEarned: -1 } },
+    ]);
+
+    return res.json({
+      success: true,
+      managers: summary,
+    });
+  } catch (error) {
+    console.error('getManagerEarningsSummary error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to fetch manager earnings summary',
+    });
+  }
+}
+
+export async function getManagerEarningsDetail(req, res) {
+  try {
+    const { managerId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(managerId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid manager id',
+      });
+    }
+
+    const manager = await Manager.findById(managerId)
+      .select('managerId fullName email mobile active')
+      .lean();
+
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found',
+      });
+    }
+
+    const managerObjectId = new mongoose.Types.ObjectId(managerId);
+    const match = {
+      matchedManagerId: managerObjectId,
+      matchType: 'claimed',
+      managerCommissionAmount: { $gt: 0 },
+    };
+
+    const [byLinkRaw, recordDocs] = await Promise.all([
+      ConversionRecord.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: '$linkId',
+            accountCount: { $sum: 1 },
+            totalEarned: { $sum: '$managerCommissionAmount' },
+            totalPaid: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$managerPaidStatus', true] },
+                  '$managerCommissionAmount',
+                  0,
+                ],
+              },
+            },
+            totalPending: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$managerPaidStatus', false] },
+                  '$managerCommissionAmount',
+                  0,
+                ],
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: 'links',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'link',
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            linkId: '$_id',
+            linkName: {
+              $ifNull: [{ $arrayElemAt: ['$link.name', 0] }, 'Unknown link'],
+            },
+            accountCount: 1,
+            totalEarned: 1,
+            totalPaid: 1,
+            totalPending: 1,
+          },
+        },
+        { $sort: { totalPending: -1, totalEarned: -1 } },
+      ]),
+      ConversionRecord.find(match)
+        .populate('linkId', 'name')
+        .populate('matchedUserId', 'fullName mobile')
+        .select(
+          'clientName clientCode appStatus commissionAmount managerCommissionAmount totalCommissionAmount managerPaidStatus managerPaidAt claimedAt createdAt linkId matchedUserId'
+        )
+        .sort({ claimedAt: -1, createdAt: -1 })
+        .lean(),
+    ]);
+
+    const totals = byLinkRaw.reduce(
+      (acc, row) => {
+        acc.totalEarned += Number(row.totalEarned || 0);
+        acc.totalPaid += Number(row.totalPaid || 0);
+        acc.totalPending += Number(row.totalPending || 0);
+        return acc;
+      },
+      { totalEarned: 0, totalPaid: 0, totalPending: 0 }
+    );
+
+    return res.json({
+      success: true,
+      manager: {
+        id: manager._id,
+        managerId: manager.managerId,
+        name: manager.fullName,
+        email: manager.email || '',
+        phone: manager.mobile || '',
+        active: Boolean(manager.active),
+      },
+      byLink: byLinkRaw,
+      records: recordDocs.map((record) => ({
+        id: record._id,
+        clientName: record.clientName || 'Referred account',
+        clientCode: String(record.clientCode || '').startsWith('MANUAL:')
+          ? ''
+          : record.clientCode || '',
+        appStatus: record.appStatus || '',
+        linkName: record.linkId?.name || 'Unknown link',
+        linkId: record.linkId?._id || record.linkId || null,
+        claimedByName: record.matchedUserId?.fullName || 'Unknown user',
+        claimedByPhone: record.matchedUserId?.mobile || '',
+        claimedByUserId: record.matchedUserId?._id || record.matchedUserId || null,
+        userAmount: Number(record.commissionAmount || 0),
+        managerAmount: Number(record.managerCommissionAmount || 0),
+        totalAmount: Number(
+          record.totalCommissionAmount ||
+            Number(record.commissionAmount || 0) +
+              Number(record.managerCommissionAmount || 0)
+        ),
+        paidStatus: Boolean(record.managerPaidStatus),
+        paidAt: record.managerPaidAt || null,
+        claimedAt: record.claimedAt || record.createdAt,
+      })),
+      totalEarned: totals.totalEarned,
+      totalPaid: totals.totalPaid,
+      totalPending: totals.totalPending,
+    });
+  } catch (error) {
+    console.error('getManagerEarningsDetail error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to fetch manager earnings detail',
+    });
+  }
+}
+
+export async function markManagerAsPaid(req, res) {
+  try {
+    const { managerId } = req.params;
+    const { recordIds } = req.body || {};
+
+    if (!mongoose.Types.ObjectId.isValid(managerId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid manager id',
+      });
+    }
+
+    const baseFilter = {
+      matchedManagerId: managerId,
+      matchType: 'claimed',
+      managerCommissionAmount: { $gt: 0 },
+      managerPaidStatus: false,
+    };
+
+    if (Array.isArray(recordIds) && recordIds.length) {
+      const validIds = recordIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+      if (validIds.length !== recordIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'recordIds must all be valid record ids',
+        });
+      }
+      baseFilter._id = { $in: validIds };
+    }
+
+    const targetRecords = await ConversionRecord.find(baseFilter)
+      .select('_id managerCommissionAmount')
+      .lean();
+
+    if (!targetRecords.length) {
+      return res.json({
+        success: true,
+        updatedCount: 0,
+        totalAmountMarkedPaid: 0,
+      });
+    }
+
+    const ids = targetRecords.map((row) => row._id);
+    const totalAmountMarkedPaid = targetRecords.reduce(
+      (sum, row) => sum + Number(row.managerCommissionAmount || 0),
+      0
+    );
+
+    const now = new Date();
+    await ConversionRecord.updateMany(
+      { _id: { $in: ids } },
+      { $set: { managerPaidStatus: true, managerPaidAt: now } }
+    );
+
+    return res.json({
+      success: true,
+      updatedCount: ids.length,
+      totalAmountMarkedPaid,
+    });
+  } catch (error) {
+    console.error('markManagerAsPaid error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to mark manager records as paid',
+    });
+  }
+}
+
 export async function editConversionRecord(req, res) {
   try {
     const record = await ConversionRecord.findById(req.params.id);
@@ -1183,6 +1157,269 @@ export async function editConversionRecord(req, res) {
   }
 }
 
+/**
+ * Links a user can filter by when searching for accounts to claim.
+ * Uses the active campaign link pool (accounts can exist under any link).
+ */
+export async function listClaimLinks(_req, res) {
+  try {
+    const links = await Link.find({ active: true })
+      .sort(LINK_SORT)
+      .select('name')
+      .lean();
+
+    return res.json({
+      success: true,
+      links: links.map((link) => ({ id: link._id, name: link.name })),
+    });
+  } catch (error) {
+    console.error('listClaimLinks error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to load links',
+    });
+  }
+}
+
+/**
+ * Exact-match search (by full mobile or client code) within one link so a user
+ * can find the accounts they referred and claim the payable ones. Never returns
+ * partial matches or full-sheet listings.
+ */
+export async function searchClaimableRecords(req, res) {
+  try {
+    const linkId = String(req.query.linkId || '').trim();
+    const query = String(req.query.query || '').trim();
+
+    if (!mongoose.Types.ObjectId.isValid(linkId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select a valid link first',
+      });
+    }
+
+    if (!query) {
+      return res.json({ success: true, records: [] });
+    }
+
+    const link = await Link.findById(linkId).select('name commissionAmount');
+    if (!link) {
+      return res.status(400).json({
+        success: false,
+        message: 'Link not found',
+      });
+    }
+
+    // Exact client-code match always; add exact mobile match only when a full
+    // 10-digit number was entered (no partial-number leaks).
+    const digits = query.replace(/\D/g, '');
+    const orConditions = [
+      { clientCode: { $regex: new RegExp(`^${escapeRegex(query)}$`, 'i') } },
+    ];
+    if (digits.length >= 10) {
+      orConditions.push({ mobileNormalized: digits.slice(-10) });
+    }
+
+    const records = await ConversionRecord.find({
+      linkId: link._id,
+      uploadMode: 'manual',
+      $or: orConditions,
+    })
+      .populate('matchedUserId', '_id')
+      .limit(20)
+      .lean();
+
+    const payableStatuses = await Settings.getPayableStatuses();
+    const currentUserId = String(req.user._id);
+    const userSharePreview = splitCommission(link.commissionAmount).userAmount;
+
+    const mapped = records.map((record) => {
+      const appStatus = String(record.appStatus || '').trim();
+      const isReady = isPayableAppStatus(appStatus, payableStatuses);
+      const isSelf = mobilesMatch(record.mobile, req.user.mobile);
+      const claimedById = record.matchedUserId
+        ? String(record.matchedUserId._id || record.matchedUserId)
+        : '';
+      const claimedByMe = claimedById && claimedById === currentUserId;
+      const isTaken = record.matchType !== 'unmatched';
+
+      let status = 'claimable';
+      let claimable = false;
+
+      if (isSelf) {
+        status = 'self';
+      } else if (claimedByMe) {
+        status = 'claimed_by_you';
+      } else if (isTaken) {
+        status = 'unavailable';
+      } else if (!isReady) {
+        status = 'not_ready';
+      } else {
+        claimable = true;
+      }
+
+      return {
+        id: record._id,
+        linkName: link.name,
+        clientName: record.clientName || '',
+        clientCode: String(record.clientCode || '').startsWith('MANUAL:')
+          ? ''
+          : record.clientCode || '',
+        mobile: record.mobile || '',
+        appStatus,
+        status,
+        claimable,
+        // User-facing amount is always their share only (never the manager cut).
+        amount: claimable
+          ? userSharePreview
+          : claimedByMe
+            ? Number(record.commissionAmount || 0)
+            : 0,
+      };
+    });
+
+    return res.json({ success: true, records: mapped });
+  } catch (error) {
+    console.error('searchClaimableRecords error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to search accounts',
+    });
+  }
+}
+
+/**
+ * Claim a single account. Requires a valid active Manager ID. Commission is split
+ * 70% user / 30% manager; the user response only includes their share.
+ * Atomic on matchType so the same record can never be claimed twice.
+ */
+export async function claimRecord(req, res) {
+  try {
+    const recordId = String(req.body?.recordId || '').trim();
+    const managerCode = String(req.body?.managerId || '')
+      .trim()
+      .toUpperCase();
+
+    if (!mongoose.Types.ObjectId.isValid(recordId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid recordId is required',
+      });
+    }
+
+    if (!managerCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Manager ID is required to claim this earning',
+      });
+    }
+
+    const manager = await Manager.findOne({ managerId: managerCode }).select(
+      '_id managerId active'
+    );
+
+    if (!manager || !manager.active) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Manager ID. Ask your manager for the correct ID.',
+      });
+    }
+
+    const record = await ConversionRecord.findById(recordId);
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found',
+      });
+    }
+
+    if (record.matchType !== 'unmatched') {
+      return res.status(409).json({
+        success: false,
+        message: 'This account has already been claimed.',
+      });
+    }
+
+    const link = await Link.findById(record.linkId);
+    if (!link) {
+      return res.status(400).json({
+        success: false,
+        message: 'Associated link not found',
+      });
+    }
+
+    const payableStatuses = await Settings.getPayableStatuses();
+    const evaluation = evaluateMatch(
+      req.user,
+      link,
+      { mobile: record.mobile, appStatus: record.appStatus },
+      payableStatuses
+    );
+
+    if (evaluation.isSelfAccount) {
+      return res.status(400).json({
+        success: false,
+        message: 'This is your own account, so it is not eligible for a commission.',
+      });
+    }
+
+    if (!evaluation.isPayable) {
+      return res.status(400).json({
+        success: false,
+        message: 'This account is not Ready To Trade yet, so it cannot be claimed.',
+      });
+    }
+
+    const split = splitCommission(evaluation.commissionAmount);
+
+    // Atomic guard: only the first claim wins.
+    const updated = await ConversionRecord.findOneAndUpdate(
+      { _id: record._id, matchType: 'unmatched' },
+      {
+        $set: {
+          matchedUserId: req.user._id,
+          matchedManagerId: manager._id,
+          matchType: 'claimed',
+          isSelfAccount: false,
+          isPayable: true,
+          totalCommissionAmount: split.totalAmount,
+          commissionAmount: split.userAmount,
+          managerCommissionAmount: split.managerAmount,
+          claimedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(409).json({
+        success: false,
+        message: 'This account has already been claimed.',
+      });
+    }
+
+    if (updated.uploadBatchId) {
+      await UploadBatch.updateOne(
+        { _id: updated.uploadBatchId, unmatchedCount: { $gt: 0 } },
+        { $inc: { unmatchedCount: -1 } }
+      );
+    }
+
+    return res.json({
+      success: true,
+      recordId: updated._id,
+      amount: Number(updated.commissionAmount || 0),
+    });
+  } catch (error) {
+    console.error('claimRecord error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to claim this account',
+    });
+  }
+}
+
 export async function getMyEarnings(req, res) {
   try {
     const userId = req.user?._id;
@@ -1207,6 +1444,148 @@ export async function getMyEarnings(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to fetch your earnings',
+    });
+  }
+}
+
+/**
+ * Manager view of their 30% share from user claims that used their Manager ID.
+ */
+export async function getMyManagerEarnings(req, res) {
+  try {
+    const managerObjectId = req.manager?._id;
+    if (!managerObjectId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Manager authentication required',
+      });
+    }
+
+    const match = {
+      matchedManagerId: managerObjectId,
+      matchType: 'claimed',
+      managerCommissionAmount: { $gt: 0 },
+    };
+
+    const [byLinkRaw, recordDocs, totalsAgg] = await Promise.all([
+      ConversionRecord.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: '$linkId',
+            accountCount: { $sum: 1 },
+            totalEarned: { $sum: '$managerCommissionAmount' },
+            totalPaid: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$managerPaidStatus', true] },
+                  '$managerCommissionAmount',
+                  0,
+                ],
+              },
+            },
+            totalPending: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$managerPaidStatus', false] },
+                  '$managerCommissionAmount',
+                  0,
+                ],
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: 'links',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'link',
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            linkId: '$_id',
+            linkName: {
+              $ifNull: [{ $arrayElemAt: ['$link.name', 0] }, 'Unknown link'],
+            },
+            accountCount: 1,
+            totalEarned: 1,
+            totalPaid: 1,
+            totalPending: 1,
+          },
+        },
+        { $sort: { totalPending: -1, totalEarned: -1 } },
+      ]),
+      ConversionRecord.find(match)
+        .populate('linkId', 'name')
+        .select(
+          'clientName clientCode appStatus managerCommissionAmount managerPaidStatus managerPaidAt claimedAt createdAt linkId'
+        )
+        .sort({ claimedAt: -1, createdAt: -1 })
+        .limit(200)
+        .lean(),
+      ConversionRecord.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: null,
+            totalEarned: { $sum: '$managerCommissionAmount' },
+            totalPaid: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$managerPaidStatus', true] },
+                  '$managerCommissionAmount',
+                  0,
+                ],
+              },
+            },
+            totalPending: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$managerPaidStatus', false] },
+                  '$managerCommissionAmount',
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]),
+    ]);
+
+    const totals = totalsAgg[0] || {
+      totalEarned: 0,
+      totalPaid: 0,
+      totalPending: 0,
+    };
+
+    return res.json({
+      success: true,
+      byLink: byLinkRaw,
+      records: recordDocs.map((record) => ({
+        id: record._id,
+        clientName: record.clientName || 'Referred account',
+        clientCode: String(record.clientCode || '').startsWith('MANUAL:')
+          ? ''
+          : record.clientCode || '',
+        appStatus: record.appStatus || '',
+        amount: Number(record.managerCommissionAmount || 0),
+        paidStatus: Boolean(record.managerPaidStatus),
+        paidAt: record.managerPaidAt || null,
+        claimedAt: record.claimedAt || record.createdAt,
+        linkName: record.linkId?.name || 'Unknown link',
+      })),
+      totalEarned: Number(totals.totalEarned || 0),
+      totalPaid: Number(totals.totalPaid || 0),
+      totalPending: Number(totals.totalPending || 0),
+    });
+  } catch (error) {
+    console.error('getMyManagerEarnings error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to fetch manager earnings',
     });
   }
 }

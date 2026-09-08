@@ -1,28 +1,29 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useManagerAuth } from '../context/ManagerAuthContext'
 import PasswordField from './PasswordField'
 import './AuthForms.css'
 
-export default function LoginForm({ onSwitchToSignup, onSwitchToManager }) {
-  const { login } = useAuth()
+export default function ManagerLoginForm({ onSwitchToUserLogin }) {
+  const { login } = useManagerAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [form, setForm] = useState({ managerId: '', password: '' })
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   function updateField(event) {
     const { name, value } = event.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    const nextValue = name === 'managerId' ? value.toUpperCase() : value
+    setForm((prev) => ({ ...prev, [name]: nextValue }))
     setErrors((prev) => ({ ...prev, [name]: '' }))
     setFormError('')
   }
 
   function clientValidate() {
     const next = {}
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      next.email = 'Enter a valid email address'
+    if (!form.managerId.trim()) {
+      next.managerId = 'Manager ID is required'
     }
     if (!form.password) {
       next.password = 'Password is required'
@@ -40,16 +41,11 @@ export default function LoginForm({ onSwitchToSignup, onSwitchToManager }) {
 
     try {
       await login({
-        email: form.email.trim(),
+        managerId: form.managerId.trim().toUpperCase(),
         password: form.password,
       })
-      navigate('/dashboard', { replace: true })
+      navigate('/manager', { replace: true })
     } catch (error) {
-      const fieldErrors = {}
-      for (const item of error.errors || []) {
-        if (item.field) fieldErrors[item.field] = item.message
-      }
-      setErrors(fieldErrors)
       setFormError(error.message || 'Login failed')
     } finally {
       setSubmitting(false)
@@ -62,16 +58,16 @@ export default function LoginForm({ onSwitchToSignup, onSwitchToManager }) {
         {formError ? <p className="form-banner">{formError}</p> : null}
 
         <label className="field">
-          <span>Email</span>
+          <span>Manager ID</span>
           <input
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={form.email}
+            name="managerId"
+            type="text"
+            autoComplete="username"
+            value={form.managerId}
             onChange={updateField}
-            placeholder="you@example.com"
+            placeholder="e.g. MGR1A2B3C"
           />
-          {errors.email ? <em>{errors.email}</em> : null}
+          {errors.managerId ? <em>{errors.managerId}</em> : null}
         </label>
 
         <PasswordField
@@ -85,25 +81,15 @@ export default function LoginForm({ onSwitchToSignup, onSwitchToManager }) {
         />
 
         <button className="btn btn-solid btn-block" type="submit" disabled={submitting}>
-          {submitting ? 'Signing in...' : 'Log in'}
+          {submitting ? 'Signing in...' : 'Log in as manager'}
         </button>
       </form>
 
       <p className="auth-switch">
-        New to Nexora?{' '}
-        <button type="button" className="auth-switch-btn" onClick={onSwitchToSignup}>
-          Sign up
+        Not a manager?{' '}
+        <button type="button" className="auth-switch-btn" onClick={onSwitchToUserLogin}>
+          User login
         </button>
-        {onSwitchToManager ? (
-          <>
-            <span className="auth-switch-sep" aria-hidden="true">
-              ·
-            </span>
-            <button type="button" className="auth-switch-btn" onClick={onSwitchToManager}>
-              Login as manager
-            </button>
-          </>
-        ) : null}
       </p>
     </>
   )

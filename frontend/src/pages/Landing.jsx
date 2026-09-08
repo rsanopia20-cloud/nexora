@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
 import BrandLogo from '../components/BrandLogo'
 import LoginForm from '../components/LoginForm'
+import ManagerLoginForm from '../components/ManagerLoginForm'
 import SignupForm from '../components/SignupForm'
 import SiteFooter from '../components/SiteFooter'
 import SiteHeader from '../components/SiteHeader'
@@ -73,7 +74,7 @@ export default function Landing() {
 
   useEffect(() => {
     const auth = searchParams.get('auth')
-    if (auth === 'login' || auth === 'signup') {
+    if (auth === 'login' || auth === 'signup' || auth === 'manager') {
       setAuthMode(auth)
     }
   }, [searchParams])
@@ -431,7 +432,19 @@ export default function Landing() {
         subtitle="Log in to continue to your Nexora account."
         onClose={closeAuth}
       >
-        <LoginForm onSwitchToSignup={() => openAuth('signup')} />
+        <LoginForm
+          onSwitchToSignup={() => openAuth('signup')}
+          onSwitchToManager={() => openAuth('manager')}
+        />
+      </AuthModal>
+
+      <AuthModal
+        open={authMode === 'manager'}
+        title="Manager login"
+        subtitle="Sign in with the Manager ID and password provided by admin."
+        onClose={closeAuth}
+      >
+        <ManagerLoginForm onSwitchToUserLogin={() => openAuth('login')} />
       </AuthModal>
 
       <AuthModal

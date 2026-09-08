@@ -3,16 +3,19 @@ import multer from 'multer';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
+  claimRecord,
   editConversionRecord,
   getCustomerEarningsDetail,
   getCustomerEarningsSummary,
+  getManagerEarningsDetail,
+  getManagerEarningsSummary,
   getManualBatchDetail,
   getMyEarnings,
-  getUnmatchedRecords,
-  ignoreRecord,
+  listClaimLinks,
   listManualBatches,
   markCustomerAsPaid,
-  manuallyMatchRecord,
+  markManagerAsPaid,
+  searchClaimableRecords,
   searchUsers,
   updateUserReferralCode,
   uploadConversionExcel,
@@ -45,14 +48,14 @@ const userConversionRouter = Router();
 router.use(requireAdmin);
 adminUserSearchRouter.use(requireAdmin);
 
-router.get('/unmatched', getUnmatchedRecords);
 router.get('/manual-batches', listManualBatches);
 router.get('/manual-batches/:batchId', getManualBatchDetail);
 router.get('/customers-summary', getCustomerEarningsSummary);
 router.get('/customers/:userId', getCustomerEarningsDetail);
 router.put('/customers/:userId/mark-paid', markCustomerAsPaid);
-router.put('/:id/match', manuallyMatchRecord);
-router.put('/:id/ignore', ignoreRecord);
+router.get('/managers-summary', getManagerEarningsSummary);
+router.get('/managers/:managerId', getManagerEarningsDetail);
+router.put('/managers/:managerId/mark-paid', markManagerAsPaid);
 router.put('/:id/edit', editConversionRecord);
 router.post('/upload', upload.single('file'), uploadConversionExcel);
 
@@ -60,6 +63,9 @@ adminUserSearchRouter.get('/search', searchUsers);
 adminUserSearchRouter.put('/:userId/referral-code', updateUserReferralCode);
 userConversionRouter.use(requireAuth);
 userConversionRouter.get('/me', getMyEarnings);
+userConversionRouter.get('/claim/links', listClaimLinks);
+userConversionRouter.get('/claim/search', searchClaimableRecords);
+userConversionRouter.post('/claim', claimRecord);
 
 export { adminUserSearchRouter };
 export { userConversionRouter };

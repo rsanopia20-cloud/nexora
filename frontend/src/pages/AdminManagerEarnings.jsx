@@ -12,21 +12,21 @@ function formatCurrency(value) {
   return `₹${formatNumber(value)}`
 }
 
-export default function AdminConversions() {
+export default function AdminManagerEarnings() {
   const navigate = useNavigate()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [busyUserId, setBusyUserId] = useState('')
+  const [busyManagerId, setBusyManagerId] = useState('')
 
   async function loadSummary() {
     setLoading(true)
     setError('')
     try {
-      const data = await apiRequest('/api/admin/conversions/customers-summary')
-      setRows(data.customers || [])
+      const data = await apiRequest('/api/admin/conversions/managers-summary')
+      setRows(data.managers || [])
     } catch (err) {
-      setError(err.message || 'Failed to load customer earnings')
+      setError(err.message || 'Failed to load manager earnings')
     } finally {
       setLoading(false)
     }
@@ -41,63 +41,66 @@ export default function AdminConversions() {
     const amount = Number(row.totalPending || 0)
     if (amount <= 0) return
 
-    const ok = window.confirm(`Mark ${formatCurrency(amount)} as paid for ${row.name}?`)
+    const ok = window.confirm(
+      `Mark ${formatCurrency(amount)} as paid for ${row.name} (${row.code})?`
+    )
     if (!ok) return
 
-    setBusyUserId(String(row.userId))
+    setBusyManagerId(String(row.managerId))
     setError('')
     try {
-      await apiRequest(`/api/admin/conversions/customers/${row.userId}/mark-paid`, {
+      await apiRequest(`/api/admin/conversions/managers/${row.managerId}/mark-paid`, {
         method: 'PUT',
       })
       await loadSummary()
     } catch (err) {
       setError(err.message || 'Failed to mark paid')
     } finally {
-      setBusyUserId('')
+      setBusyManagerId('')
     }
   }
 
   return (
-    <AdminShell title="Customer Earnings">
+    <AdminShell title="Manager Earnings">
       <div className="admin-page-intro">
-        <h1>Customer earnings</h1>
-        <p>See exactly how much each customer has earned, been paid, and is still pending.</p>
+        <h1>Manager earnings</h1>
+        <p>
+          See how much each manager earned from user claims (30% share), and mark pending amounts
+          as paid.
+        </p>
       </div>
 
       <div className="admin-actions" style={{ marginBottom: '1rem' }}>
-        <Link to="/admin/conversions/upload" className="admin-btn admin-btn-ghost">
-          Upload Excel
+        <Link to="/admin/conversions" className="admin-btn admin-btn-ghost">
+          Customer Earnings
         </Link>
-        <Link to="/admin/conversions/manual" className="admin-btn admin-btn-ghost">
-          Uploaded Sheets
-        </Link>
-        <Link to="/admin/manager-earnings" className="admin-btn admin-btn-ghost">
-          Manager Earnings
+        <Link to="/admin/managers" className="admin-btn admin-btn-ghost">
+          Manage Managers
         </Link>
       </div>
 
-      {loading ? <p className="admin-loading">Loading earnings summary...</p> : null}
+      {loading ? <p className="admin-loading">Loading manager earnings...</p> : null}
       {error ? <p className="admin-error">{error}</p> : null}
 
       {!loading && !rows.length ? (
-        <p className="admin-empty">No payable records yet.</p>
+        <p className="admin-empty">No manager earnings yet. Earnings appear when users claim with a Manager ID.</p>
       ) : null}
 
       {!loading && rows.length ? (
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <h2 className="admin-section-title">Customers ({formatNumber(rows.length)})</h2>
+            <h2 className="admin-section-title">Managers ({formatNumber(rows.length)})</h2>
             <p className="admin-section-note">Sorted by pending amount (highest first)</p>
           </div>
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Customer Name</th>
+                  <th>Manager</th>
+                  <th>Manager ID</th>
                   <th>Phone</th>
-                  <th>Referral Code</th>
-                  <th>Total Accounts</th>
+                  <th>Status</th>
+                  <th>Claims</th>
                   <th>Total Earned</th>
                   <th>Total Paid</th>
                   <th>Total Pending</th>
@@ -107,16 +110,21 @@ export default function AdminConversions() {
               <tbody>
                 {rows.map((row) => (
                   <tr
-                    key={String(row.userId)}
-                    onClick={() => navigate(`/admin/conversions/${row.userId}`)}
+                    key={String(row.managerId)}
+                    onClick={() => navigate(`/admin/manager-earnings/${row.managerId}`)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <td className="admin-cell-name" data-label="Customer Name">
+                    <td className="admin-cell-name" data-label="Manager">
                       {row.name || '—'}
                     </td>
+                    <td data-label="Manager ID">{row.code || '—'}</td>
                     <td data-label="Phone">{row.phone || '—'}</td>
-                    <td data-label="Referral Code">{row.referralCode || '—'}</td>
-                    <td className="admin-num" data-label="Total Accounts">
+                    <td data-label="Status">
+                      <span className={`badge ${row.active ? 'badge-on' : 'badge-off'}`}>
+                        {row.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="admin-num" data-label="Claims">
                       {formatNumber(row.totalAccounts)}
                     </td>
                     <td className="admin-num" data-label="Total Earned">
@@ -132,10 +140,15 @@ export default function AdminConversions() {
                       <button
                         type="button"
                         className="admin-btn admin-btn-ghost"
-                        disabled={Number(row.totalPending || 0) <= 0 || busyUserId === String(row.userId)}
+                        disabled={
+                          Number(row.totalPending || 0) <= 0 ||
+                          busyManagerId === String(row.managerId)
+                        }
                         onClick={(event) => markAllPaid(row, event)}
                       >
-                        {busyUserId === String(row.userId) ? 'Updating...' : 'Mark All Paid'}
+                        {busyManagerId === String(row.managerId)
+                          ? 'Updating...'
+                          : 'Mark All Paid'}
                       </button>
                     </td>
                   </tr>

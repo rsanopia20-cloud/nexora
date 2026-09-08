@@ -45,6 +45,13 @@ const conversionRecordSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    /** Last-10-digit form of `mobile` for fast, exact user-claim lookups. */
+    mobileNormalized: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
     appStatus: {
       type: String,
       trim: true,
@@ -67,8 +74,40 @@ const conversionRecordSchema = new mongoose.Schema(
     },
     matchType: {
       type: String,
-      enum: ['auto', 'manual', 'unmatched', 'ignored'],
+      enum: ['auto', 'manual', 'unmatched', 'ignored', 'claimed'],
       default: 'unmatched',
+    },
+    /** When a user self-claimed this record (null until claimed). */
+    claimedAt: {
+      type: Date,
+      default: null,
+    },
+    /** Manager credited on claim (required for user self-claims). */
+    matchedManagerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Manager',
+      default: null,
+      index: true,
+    },
+    /** Full link commission before the 70/30 split. */
+    totalCommissionAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    /** Manager's 30% share (users never see this amount). */
+    managerCommissionAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    managerPaidStatus: {
+      type: Boolean,
+      default: false,
+    },
+    managerPaidAt: {
+      type: Date,
+      default: null,
     },
     isSelfAccount: {
       type: Boolean,
@@ -83,6 +122,7 @@ const conversionRecordSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    /** User payment status for their 70% share. */
     paidStatus: {
       type: Boolean,
       default: false,
@@ -126,6 +166,8 @@ const conversionRecordSchema = new mongoose.Schema(
 
 // Same broker client code must never be counted twice across overlapping uploads.
 conversionRecordSchema.index({ linkId: 1, clientCode: 1 }, { unique: true });
+// Fast per-link user-claim search by normalized mobile.
+conversionRecordSchema.index({ linkId: 1, mobileNormalized: 1 });
 
 const ConversionRecord = mongoose.model('ConversionRecord', conversionRecordSchema);
 

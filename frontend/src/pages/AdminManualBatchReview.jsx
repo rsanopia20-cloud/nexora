@@ -19,176 +19,57 @@ function formatDate(value) {
   }
 }
 
+function formatCurrency(value) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`
+}
+
 function cellDisplay(value) {
   if (value === undefined || value === null || value === '') return '—'
   return String(value)
 }
 
-function ManualRow({ record, columns, onResolved }) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [searching, setSearching] = useState(false)
-  const [busyAction, setBusyAction] = useState('')
-  const [rowMessage, setRowMessage] = useState('')
+function ClaimStatusCell({ record }) {
+  const { matchType, matchedUser } = record
 
-  const isPending = record.matchType === 'unmatched'
-
-  useEffect(() => {
-    const trimmed = query.trim()
-    if (!trimmed || !isPending) {
-      setResults([])
-      setSelectedUser(null)
-      return undefined
-    }
-
-    const timer = window.setTimeout(async () => {
-      setSearching(true)
-      try {
-        const data = await apiRequest(
-          `/api/admin/users/search?query=${encodeURIComponent(trimmed)}`
-        )
-        setResults(data.users || [])
-      } catch {
-        setResults([])
-      } finally {
-        setSearching(false)
-      }
-    }, 300)
-
-    return () => window.clearTimeout(timer)
-  }, [query, isPending])
-
-  function pickUser(user) {
-    setSelectedUser(user)
-    setQuery(`${user.name} (${user.phone})`)
-    setResults([])
+  if (matchType === 'claimed') {
+    return (
+      <div className="admin-manual-assign">
+        <span className="admin-section-note">
+          {matchedUser
+            ? `${matchedUser.name} (${matchedUser.phone || '—'})`
+            : 'Claimed'}
+          {record.commissionAmount ? ` · ${formatCurrency(record.commissionAmount)}` : ''}
+        </span>
+        <span className="badge badge-on">Claimed</span>
+      </div>
+    )
   }
 
-  async function confirmMatch() {
-    if (!selectedUser) return
-    setBusyAction('match')
-    setRowMessage('')
-    try {
-      await apiRequest(`/api/admin/conversions/${record.id}/match`, {
-        method: 'PUT',
-        body: JSON.stringify({ userId: selectedUser._id }),
-      })
-      setRowMessage('Assigned')
-      window.setTimeout(() => onResolved(record.id), 400)
-    } catch (err) {
-      setRowMessage(err.message || 'Assign failed')
-    } finally {
-      setBusyAction('')
-    }
+  if (matchType === 'manual' || matchType === 'auto') {
+    return (
+      <div className="admin-manual-assign">
+        <span className="admin-section-note">
+          {matchedUser
+            ? `${matchedUser.name} (${matchedUser.phone || '—'})`
+            : matchType}
+        </span>
+        <span className="badge badge-on">Assigned</span>
+      </div>
+    )
   }
 
-  async function ignoreRow() {
-    setBusyAction('ignore')
-    setRowMessage('')
-    try {
-      await apiRequest(`/api/admin/conversions/${record.id}/ignore`, {
-        method: 'PUT',
-      })
-      setRowMessage('Ignored')
-      window.setTimeout(() => onResolved(record.id), 400)
-    } catch (err) {
-      setRowMessage(err.message || 'Ignore failed')
-    } finally {
-      setBusyAction('')
-    }
+  if (matchType === 'ignored') {
+    return (
+      <div className="admin-manual-assign">
+        <span className="badge badge-off">Ignored</span>
+      </div>
+    )
   }
 
   return (
-    <tr>
-      <td className="admin-num" data-label="#">
-        {record.rowIndex || '—'}
-      </td>
-      {columns.map((column) => (
-        <td key={column} data-label={column} title={cellDisplay(record.rawData?.[column])}>
-          {cellDisplay(record.rawData?.[column])}
-        </td>
-      ))}
-      <td className="admin-assign-col" data-label="Assign customer">
-        {!isPending ? (
-          <div className="admin-manual-assign">
-            <span className="admin-section-note">
-              {record.matchedUser
-                ? `${record.matchedUser.name} (${record.matchedUser.phone || '—'})`
-                : record.matchType}
-            </span>
-            <span
-              className={`badge ${record.matchType === 'ignored' ? 'badge-off' : 'badge-on'}`}
-            >
-              {record.matchType}
-            </span>
-          </div>
-        ) : (
-          <div className="admin-manual-assign">
-            <input
-              className="admin-search admin-match-search"
-              type="search"
-              placeholder="Search name, phone, or code..."
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value)
-                setSelectedUser(null)
-              }}
-              disabled={Boolean(busyAction)}
-            />
-            {searching ? <span className="admin-match-hint">Searching...</span> : null}
-            {!searching && query.trim() && !results.length && !selectedUser ? (
-              <span className="admin-match-hint">No users found</span>
-            ) : null}
-            {results.length ? (
-              <ul className="admin-user-dropdown" role="listbox">
-                {results.map((user) => (
-                  <li key={user._id}>
-                    <button type="button" onClick={() => pickUser(user)}>
-                      <strong>{user.name}</strong>
-                      <span>
-                        {user.phone || '—'} · {user.referralCode || 'no code'}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="admin-row-actions">
-              {selectedUser ? (
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-primary"
-                  onClick={confirmMatch}
-                  disabled={Boolean(busyAction)}
-                >
-                  {busyAction === 'match' ? 'Assigning…' : 'Confirm Assign'}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="admin-btn admin-btn-muted"
-                onClick={ignoreRow}
-                disabled={Boolean(busyAction)}
-              >
-                {busyAction === 'ignore' ? 'Ignoring…' : 'Ignore'}
-              </button>
-              {rowMessage ? (
-                <span
-                  className={
-                    rowMessage === 'Assigned' || rowMessage === 'Ignored'
-                      ? 'admin-match-success'
-                      : 'admin-match-error'
-                  }
-                >
-                  {rowMessage}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </td>
-    </tr>
+    <div className="admin-manual-assign">
+      <span className="badge badge-off">Unclaimed</span>
+    </div>
   )
 }
 
@@ -197,7 +78,7 @@ export default function AdminManualBatchReview() {
   const [batch, setBatch] = useState(null)
   const [records, setRecords] = useState([])
   const [columns, setColumns] = useState([])
-  const [status, setStatus] = useState('pending')
+  const [status, setStatus] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -225,26 +106,14 @@ export default function AdminManualBatchReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchId, status])
 
-  function removeRecord(id) {
-    setRecords((prev) => prev.filter((record) => record.id !== id))
-    setBatch((prev) =>
-      prev
-        ? {
-            ...prev,
-            unmatchedCount: Math.max(0, Number(prev.unmatchedCount || 0) - 1),
-          }
-        : prev
-    )
-  }
-
   return (
-    <AdminShell title="Manual Sheet Review">
+    <AdminShell title="Manual Sheet">
       <div className="admin-page-intro">
         <h1>{batch?.fileName || 'Manual Excel sheet'}</h1>
         <p>
           {batch
-            ? `Link: ${batch.linkName}. Columns match your uploaded file — assign each row to a customer.`
-            : 'Review uploaded rows and assign customers manually.'}
+            ? `Link: ${batch.linkName}. Uploaded rows are shown as-is. Users claim their own Ready To Trade accounts — no manual assignment needed.`
+            : 'Uploaded rows are shown as-is. Users claim their own accounts.'}
         </p>
       </div>
 
@@ -255,6 +124,9 @@ export default function AdminManualBatchReview() {
         <Link to="/admin/conversions/upload" className="admin-btn admin-btn-ghost">
           Upload Another
         </Link>
+        <Link to="/admin/conversions" className="admin-btn admin-btn-ghost">
+          Customer Earnings
+        </Link>
       </div>
 
       {batch ? (
@@ -264,7 +136,7 @@ export default function AdminManualBatchReview() {
             <strong>{batch.totalRows}</strong>
           </div>
           <div className="admin-meta-card">
-            <span>Still pending</span>
+            <span>Unclaimed</span>
             <strong>{batch.unmatchedCount}</strong>
           </div>
           <div className="admin-meta-card">
@@ -282,25 +154,34 @@ export default function AdminManualBatchReview() {
         <div className="admin-panel-head">
           <h2 className="admin-section-title">
             {status === 'pending'
-              ? `${records.length} pending rows`
+              ? `${records.length} unclaimed rows`
               : status === 'assigned'
-                ? `${records.length} assigned rows`
-                : `${records.length} ignored rows`}
+                ? `${records.length} claimed rows`
+                : status === 'ignored'
+                  ? `${records.length} ignored rows`
+                  : `${records.length} rows`}
           </h2>
           <div className="admin-filter-tabs">
+            <button
+              type="button"
+              className={status === 'all' ? 'is-active' : ''}
+              onClick={() => setStatus('all')}
+            >
+              All
+            </button>
             <button
               type="button"
               className={status === 'pending' ? 'is-active' : ''}
               onClick={() => setStatus('pending')}
             >
-              Pending
+              Unclaimed
             </button>
             <button
               type="button"
               className={status === 'assigned' ? 'is-active' : ''}
               onClick={() => setStatus('assigned')}
             >
-              Assigned
+              Claimed
             </button>
             <button
               type="button"
@@ -308,13 +189,6 @@ export default function AdminManualBatchReview() {
               onClick={() => setStatus('ignored')}
             >
               Ignored
-            </button>
-            <button
-              type="button"
-              className={status === 'all' ? 'is-active' : ''}
-              onClick={() => setStatus('all')}
-            >
-              All
             </button>
           </div>
         </div>
@@ -335,17 +209,28 @@ export default function AdminManualBatchReview() {
                   {columns.map((column) => (
                     <th key={column}>{column}</th>
                   ))}
-                  <th className="admin-assign-col">Assign customer</th>
+                  <th className="admin-assign-col">Claim status</th>
                 </tr>
               </thead>
               <tbody>
                 {records.map((record) => (
-                  <ManualRow
-                    key={record.id}
-                    record={record}
-                    columns={columns}
-                    onResolved={removeRecord}
-                  />
+                  <tr key={record.id}>
+                    <td className="admin-num" data-label="#">
+                      {record.rowIndex || '—'}
+                    </td>
+                    {columns.map((column) => (
+                      <td
+                        key={column}
+                        data-label={column}
+                        title={cellDisplay(record.rawData?.[column])}
+                      >
+                        {cellDisplay(record.rawData?.[column])}
+                      </td>
+                    ))}
+                    <td className="admin-assign-col" data-label="Claim status">
+                      <ClaimStatusCell record={record} />
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
