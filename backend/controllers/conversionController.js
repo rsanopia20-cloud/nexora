@@ -91,7 +91,7 @@ async function buildEarningsDetail(
           },
           totalPending: {
             $sum: {
-              $cond: [{ $eq: ['$paidStatus', false] }, '$commissionAmount', 0],
+              $cond: [{ $ne: ['$paidStatus', true] }, '$commissionAmount', 0],
             },
           },
         },
@@ -152,7 +152,9 @@ async function buildEarningsDetail(
     records: recordDocs.map((record) => ({
       id: record._id,
       clientName: record.clientName,
-      clientCode: record.clientCode,
+      clientCode: String(record.clientCode || '').startsWith('MANUAL:')
+        ? ''
+        : record.clientCode || '',
       appStatus: record.appStatus,
       commissionAmount: record.commissionAmount,
       paidStatus: Boolean(record.paidStatus),
@@ -598,7 +600,7 @@ export async function getCustomerEarningsSummary(_req, res) {
           },
           totalPending: {
             $sum: {
-              $cond: [{ $eq: ['$paidStatus', false] }, '$commissionAmount', 0],
+              $cond: [{ $ne: ['$paidStatus', true] }, '$commissionAmount', 0],
             },
           },
         },
@@ -689,7 +691,7 @@ export async function markCustomerAsPaid(req, res) {
     const baseFilter = {
       matchedUserId: userId,
       isPayable: true,
-      paidStatus: false,
+      paidStatus: { $ne: true },
     };
 
     if (Array.isArray(recordIds) && recordIds.length) {
@@ -768,7 +770,7 @@ export async function getManagerEarningsSummary(_req, res) {
           totalPending: {
             $sum: {
               $cond: [
-                { $eq: ['$managerPaidStatus', false] },
+                { $ne: ['$managerPaidStatus', true] },
                 '$managerCommissionAmount',
                 0,
               ],
@@ -870,7 +872,7 @@ export async function getManagerEarningsDetail(req, res) {
             totalPending: {
               $sum: {
                 $cond: [
-                  { $eq: ['$managerPaidStatus', false] },
+                  { $ne: ['$managerPaidStatus', true] },
                   '$managerCommissionAmount',
                   0,
                 ],
@@ -984,7 +986,7 @@ export async function markManagerAsPaid(req, res) {
       matchedManagerId: managerId,
       matchType: 'claimed',
       managerCommissionAmount: { $gt: 0 },
-      managerPaidStatus: false,
+      managerPaidStatus: { $ne: true },
     };
 
     if (Array.isArray(recordIds) && recordIds.length) {
@@ -1386,6 +1388,10 @@ export async function claimRecord(req, res) {
           totalCommissionAmount: split.totalAmount,
           commissionAmount: split.userAmount,
           managerCommissionAmount: split.managerAmount,
+          paidStatus: false,
+          paidAt: null,
+          managerPaidStatus: false,
+          managerPaidAt: null,
           claimedAt: new Date(),
         },
       },
@@ -1487,7 +1493,7 @@ export async function getMyManagerEarnings(req, res) {
             totalPending: {
               $sum: {
                 $cond: [
-                  { $eq: ['$managerPaidStatus', false] },
+                  { $ne: ['$managerPaidStatus', true] },
                   '$managerCommissionAmount',
                   0,
                 ],
@@ -1520,8 +1526,9 @@ export async function getMyManagerEarnings(req, res) {
       ]),
       ConversionRecord.find(match)
         .populate('linkId', 'name')
+        .populate('matchedUserId', 'fullName mobile')
         .select(
-          'clientName clientCode appStatus managerCommissionAmount managerPaidStatus managerPaidAt claimedAt createdAt linkId'
+          'clientName clientCode appStatus managerCommissionAmount managerPaidStatus managerPaidAt claimedAt createdAt linkId matchedUserId'
         )
         .sort({ claimedAt: -1, createdAt: -1 })
         .limit(200)
@@ -1544,7 +1551,7 @@ export async function getMyManagerEarnings(req, res) {
             totalPending: {
               $sum: {
                 $cond: [
-                  { $eq: ['$managerPaidStatus', false] },
+                  { $ne: ['$managerPaidStatus', true] },
                   '$managerCommissionAmount',
                   0,
                 ],
@@ -1576,6 +1583,8 @@ export async function getMyManagerEarnings(req, res) {
         paidAt: record.managerPaidAt || null,
         claimedAt: record.claimedAt || record.createdAt,
         linkName: record.linkId?.name || 'Unknown link',
+        claimedByName: record.matchedUserId?.fullName || 'Unknown user',
+        claimedByPhone: record.matchedUserId?.mobile || '',
       })),
       totalEarned: Number(totals.totalEarned || 0),
       totalPaid: Number(totals.totalPaid || 0),

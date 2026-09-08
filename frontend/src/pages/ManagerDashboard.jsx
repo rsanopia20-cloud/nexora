@@ -143,6 +143,7 @@ export default function ManagerDashboard() {
                   <table className="admin-table">
                     <thead>
                       <tr>
+                        <th>Claimed by (user)</th>
                         <th>Account</th>
                         <th>Link</th>
                         <th>Amount</th>
@@ -153,7 +154,16 @@ export default function ManagerDashboard() {
                     <tbody>
                       {earnings.records.map((record) => (
                         <tr key={record.id}>
-                          <td className="admin-cell-name" data-label="Account">
+                          <td className="admin-cell-name" data-label="Claimed by">
+                            {record.claimedByName || '—'}
+                            {record.claimedByPhone ? (
+                              <span className="admin-section-note">
+                                {' '}
+                                · {record.claimedByPhone}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td data-label="Account">
                             {record.clientName || 'Referred account'}
                             {record.clientCode ? (
                               <span className="admin-section-note"> · {record.clientCode}</span>
