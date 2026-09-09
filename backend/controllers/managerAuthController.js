@@ -4,6 +4,10 @@ import {
   setManagerCookie,
   signManagerToken,
 } from '../utils/token.js';
+import {
+  serializeBankDetails,
+  validateBankDetails,
+} from '../utils/bankDetails.js';
 
 function serializeManager(manager) {
   return {
@@ -13,6 +17,7 @@ function serializeManager(manager) {
     email: manager.email || '',
     mobile: manager.mobile || '',
     active: Boolean(manager.active),
+    bankDetails: serializeBankDetails(manager.bankDetails),
   };
 }
 
@@ -85,4 +90,37 @@ export async function managerMe(req, res) {
     success: true,
     manager: serializeManager(req.manager),
   });
+}
+
+/**
+ * PUT /api/manager/bank-details
+ * Save or update the logged-in manager's payout bank details.
+ */
+export async function updateManagerBankDetails(req, res) {
+  try {
+    const result = validateBankDetails(req.body || {});
+    if (!result.ok) {
+      return res.status(400).json({
+        success: false,
+        message: result.errors[0]?.message || 'Invalid bank details',
+        errors: result.errors,
+      });
+    }
+
+    req.manager.bankDetails = result.data;
+    await req.manager.save();
+
+    return res.json({
+      success: true,
+      message: 'Bank details saved',
+      bankDetails: serializeBankDetails(req.manager.bankDetails),
+      manager: serializeManager(req.manager),
+    });
+  } catch (error) {
+    console.error('updateManagerBankDetails error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to save bank details',
+    });
+  }
 }

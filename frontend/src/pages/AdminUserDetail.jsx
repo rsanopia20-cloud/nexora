@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
+import { BankDetailsReadOnly } from '../components/BankDetailsForm'
 import './Admin.css'
 
 // TODO: Protect this page with admin-only auth before production.
@@ -99,6 +100,18 @@ export default function AdminUserDetail() {
               <span>Links used</span>
               <strong>{formatNumber(detail.summary?.linksUsed)}</strong>
             </div>
+          </div>
+
+          <div className="admin-panel">
+            <div className="admin-panel-head">
+              <h2 className="admin-section-title">Bank details</h2>
+              <p className="admin-section-note">
+                {detail.user?.hasBankDetails
+                  ? 'Payout account provided by the user'
+                  : 'User has not added bank details yet'}
+              </p>
+            </div>
+            <BankDetailsReadOnly bankDetails={detail.user?.bankDetails} />
           </div>
 
           <div className="admin-panel">

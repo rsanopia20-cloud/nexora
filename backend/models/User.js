@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { bankDetailsSchemaFields } from '../utils/bankDetails.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -37,6 +38,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
       default: null,
+    },
+    bankDetails: {
+      type: new mongoose.Schema(bankDetailsSchemaFields(mongoose), { _id: false }),
+      default: () => ({}),
     },
   },
   {

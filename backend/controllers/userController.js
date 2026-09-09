@@ -3,6 +3,10 @@ import LinkUsage from '../models/LinkUsage.js';
 import ClickEvent from '../models/ClickEvent.js';
 import { getOrCreateTrackingCode } from '../utils/shortCode.js';
 import { buildShortTrackingUrl } from '../utils/publicUrl.js';
+import {
+  serializeBankDetails,
+  validateBankDetails,
+} from '../utils/bankDetails.js';
 
 /**
  * GET /api/user/links
@@ -47,6 +51,38 @@ export async function getMyLinks(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to load your links',
+    });
+  }
+}
+
+/**
+ * PUT /api/user/bank-details
+ * Save or update the logged-in user's payout bank details.
+ */
+export async function updateMyBankDetails(req, res) {
+  try {
+    const result = validateBankDetails(req.body || {});
+    if (!result.ok) {
+      return res.status(400).json({
+        success: false,
+        message: result.errors[0]?.message || 'Invalid bank details',
+        errors: result.errors,
+      });
+    }
+
+    req.user.bankDetails = result.data;
+    await req.user.save();
+
+    return res.json({
+      success: true,
+      message: 'Bank details saved',
+      bankDetails: serializeBankDetails(req.user.bankDetails),
+    });
+  } catch (error) {
+    console.error('updateMyBankDetails error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to save bank details',
     });
   }
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import BrandLogo from '../components/BrandLogo'
 import ConfirmDialog from '../components/ConfirmDialog'
+import BankDetailsForm from '../components/BankDetailsForm'
 import { useManagerAuth } from '../context/ManagerAuthContext'
 import './Admin.css'
 
@@ -25,7 +26,7 @@ function formatDate(value) {
 
 export default function ManagerDashboard() {
   const navigate = useNavigate()
-  const { manager, logout } = useManagerAuth()
+  const { manager, logout, refreshManager } = useManagerAuth()
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [logoutBusy, setLogoutBusy] = useState(false)
   const [earnings, setEarnings] = useState(null)
@@ -108,6 +109,26 @@ export default function ManagerDashboard() {
               <strong>{manager?.mobile || '—'}</strong>
             </div>
           </div>
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <h2 className="admin-section-title">Bank details for payout</h2>
+            <p className="admin-section-note">
+              Add your bank account so admin can pay your manager earnings.
+            </p>
+          </div>
+          <BankDetailsForm
+            variant="admin"
+            initialValues={manager?.bankDetails}
+            onSave={async (payload) => {
+              await apiRequest('/api/manager/bank-details', {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+              })
+              await refreshManager()
+            }}
+          />
         </div>
 
         <div className="admin-panel">

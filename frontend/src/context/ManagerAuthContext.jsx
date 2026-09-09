@@ -55,6 +55,12 @@ export function ManagerAuthProvider({ children }) {
     setManager(null)
   }, [])
 
+  const refreshManager = useCallback(async () => {
+    const data = await apiRequest('/api/manager/me')
+    setManager(data.manager || null)
+    return data.manager
+  }, [])
+
   const value = useMemo(
     () => ({
       manager,
@@ -62,8 +68,10 @@ export function ManagerAuthProvider({ children }) {
       loading,
       login,
       logout,
+      refreshManager,
+      setManager,
     }),
-    [manager, loading, login, logout]
+    [manager, loading, login, logout, refreshManager]
   )
 
   return (

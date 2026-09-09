@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { bankDetailsSchemaFields } from '../utils/bankDetails.js';
 
 const managerSchema = new mongoose.Schema(
   {
@@ -64,6 +65,10 @@ const managerSchema = new mongoose.Schema(
       trim: true,
       default: '',
       maxlength: [500, 'Notes must be at most 500 characters'],
+    },
+    bankDetails: {
+      type: new mongoose.Schema(bankDetailsSchemaFields(mongoose), { _id: false }),
+      default: () => ({}),
     },
   },
   {

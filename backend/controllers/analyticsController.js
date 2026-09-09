@@ -6,6 +6,10 @@ import ClickEvent from '../models/ClickEvent.js';
 import LinkUsage from '../models/LinkUsage.js';
 import TrackingCode from '../models/TrackingCode.js';
 import { buildShortTrackingUrl } from '../utils/publicUrl.js';
+import {
+  hasCompleteBankDetails,
+  serializeBankDetails,
+} from '../utils/bankDetails.js';
 
 const IST_TZ = 'Asia/Kolkata';
 
@@ -226,7 +230,9 @@ export async function getUserHistory(req, res) {
       });
     }
 
-    const user = await User.findById(userId).select('fullName email mobile createdAt');
+    const user = await User.findById(userId).select(
+      'fullName email mobile createdAt bankDetails'
+    );
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -282,6 +288,8 @@ export async function getUserHistory(req, res) {
         phone: user.mobile,
         mobile: user.mobile,
         createdAt: user.createdAt,
+        bankDetails: serializeBankDetails(user.bankDetails),
+        hasBankDetails: hasCompleteBankDetails(user.bankDetails),
       },
       summary: {
         totalAttempts,

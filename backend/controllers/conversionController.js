@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import Link, { LINK_SORT } from '../models/Link.js';
 import User from '../models/User.js';
 import Settings from '../models/Settings.js';
@@ -13,6 +14,10 @@ import {
   splitCommission,
 } from '../utils/matchEvaluation.js';
 import Manager from '../models/Manager.js';
+import {
+  hasCompleteBankDetails,
+  serializeBankDetails,
+} from '../utils/bankDetails.js';
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -126,7 +131,7 @@ async function buildEarningsDetail(
       )
       .sort({ createdAt: -1 })
       .lean(),
-    includeUser ? User.findById(userObjectId).select('fullName mobile referralCode').lean() : null,
+    includeUser ? User.findById(userObjectId).select('fullName mobile referralCode bankDetails').lean() : null,
   ]);
 
   const totals = byLinkRaw.reduce(
@@ -146,6 +151,8 @@ async function buildEarningsDetail(
           name: userDoc.fullName,
           phone: userDoc.mobile,
           referralCode: userDoc.referralCode || '',
+          bankDetails: serializeBankDetails(userDoc.bankDetails),
+          hasBankDetails: hasCompleteBankDetails(userDoc.bankDetails),
         }
       : null,
     byLink: byLinkRaw,
@@ -835,7 +842,7 @@ export async function getManagerEarningsDetail(req, res) {
     }
 
     const manager = await Manager.findById(managerId)
-      .select('managerId fullName email mobile active')
+      .select('managerId fullName email mobile active bankDetails')
       .lean();
 
     if (!manager) {
@@ -932,6 +939,8 @@ export async function getManagerEarningsDetail(req, res) {
         email: manager.email || '',
         phone: manager.mobile || '',
         active: Boolean(manager.active),
+        bankDetails: serializeBankDetails(manager.bankDetails),
+        hasBankDetails: hasCompleteBankDetails(manager.bankDetails),
       },
       byLink: byLinkRaw,
       records: recordDocs.map((record) => ({
@@ -1034,6 +1043,287 @@ export async function markManagerAsPaid(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to mark manager records as paid',
+    });
+  }
+}
+
+function stylePayoutHeader(sheet) {
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF1F4E79' },
+  };
+  headerRow.alignment = { vertical: 'middle', wrapText: true };
+  headerRow.height = 22;
+}
+
+function payoutFileStamp() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+/**
+ * Bank payout Excel for users with pending (unpaid) earnings.
+ * Sheet 1: Ready for bank (complete bank details)
+ * Sheet 2: Missing bank details (pending but incomplete bank info)
+ */
+export async function exportCustomerPayoutExcel(_req, res) {
+  try {
+    const pendingAgg = await ConversionRecord.aggregate([
+      {
+        $match: {
+          isPayable: true,
+          matchedUserId: { $ne: null },
+          paidStatus: { $ne: true },
+          commissionAmount: { $gt: 0 },
+        },
+      },
+      {
+        $group: {
+          _id: '$matchedUserId',
+          pendingAmount: { $sum: '$commissionAmount' },
+          pendingClaims: { $sum: 1 },
+        },
+      },
+      { $sort: { pendingAmount: -1 } },
+    ]);
+
+    const userIds = pendingAgg.map((row) => row._id);
+    const users = userIds.length
+      ? await User.find({ _id: { $in: userIds } })
+          .select('fullName email mobile referralCode bankDetails')
+          .lean()
+      : [];
+    const userMap = new Map(users.map((user) => [String(user._id), user]));
+
+    const readyRows = [];
+    const missingRows = [];
+
+    for (const row of pendingAgg) {
+      const user = userMap.get(String(row._id));
+      if (!user) continue;
+
+      const bank = serializeBankDetails(user.bankDetails);
+      const base = {
+        customerName: user.fullName || '',
+        phone: user.mobile || '',
+        email: user.email || '',
+        referralCode: user.referralCode || '',
+        pendingClaims: Number(row.pendingClaims || 0),
+        amount: Number(row.pendingAmount || 0),
+        accountHolderName: bank.accountHolderName,
+        accountNumber: bank.accountNumber,
+        ifscCode: bank.ifscCode,
+        bankName: bank.bankName,
+        narration: `Nexora user payout ${user.mobile || user._id}`,
+      };
+
+      if (hasCompleteBankDetails(user.bankDetails)) {
+        readyRows.push(base);
+      } else {
+        missingRows.push(base);
+      }
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Nexora Bizworks';
+    workbook.created = new Date();
+
+    const readySheet = workbook.addWorksheet('Bank Payout', {
+      views: [{ state: 'frozen', ySplit: 1 }],
+    });
+    readySheet.columns = [
+      { header: 'Sr No', key: 'srNo', width: 8 },
+      { header: 'Beneficiary Name', key: 'accountHolderName', width: 24 },
+      { header: 'Account Number', key: 'accountNumber', width: 20 },
+      { header: 'IFSC Code', key: 'ifscCode', width: 14 },
+      { header: 'Bank Name', key: 'bankName', width: 24 },
+      { header: 'Amount', key: 'amount', width: 12 },
+      { header: 'Payment Narration', key: 'narration', width: 32 },
+      { header: 'Customer Name', key: 'customerName', width: 22 },
+      { header: 'Phone', key: 'phone', width: 14 },
+      { header: 'Email', key: 'email', width: 28 },
+      { header: 'Referral Code', key: 'referralCode', width: 14 },
+      { header: 'Pending Claims', key: 'pendingClaims', width: 14 },
+    ];
+    stylePayoutHeader(readySheet);
+    readyRows.forEach((row, index) => {
+      readySheet.addRow({ srNo: index + 1, ...row });
+    });
+
+    const missingSheet = workbook.addWorksheet('Missing Bank Details', {
+      views: [{ state: 'frozen', ySplit: 1 }],
+    });
+    missingSheet.columns = [
+      { header: 'Sr No', key: 'srNo', width: 8 },
+      { header: 'Customer Name', key: 'customerName', width: 22 },
+      { header: 'Phone', key: 'phone', width: 14 },
+      { header: 'Email', key: 'email', width: 28 },
+      { header: 'Referral Code', key: 'referralCode', width: 14 },
+      { header: 'Pending Amount', key: 'amount', width: 14 },
+      { header: 'Pending Claims', key: 'pendingClaims', width: 14 },
+      { header: 'Bank Name', key: 'bankName', width: 20 },
+      { header: 'Account Holder', key: 'accountHolderName', width: 22 },
+      { header: 'Account Number', key: 'accountNumber', width: 18 },
+      { header: 'IFSC', key: 'ifscCode', width: 14 },
+    ];
+    stylePayoutHeader(missingSheet);
+    missingRows.forEach((row, index) => {
+      missingSheet.addRow({ srNo: index + 1, ...row });
+    });
+
+    const stamp = payoutFileStamp();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="nexora-user-payout-${stamp}.xlsx"`
+    );
+    await workbook.xlsx.write(res);
+    return res.end();
+  } catch (error) {
+    console.error('exportCustomerPayoutExcel error:', error);
+    if (res.headersSent) return;
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to export user payout sheet',
+    });
+  }
+}
+
+/**
+ * Bank payout Excel for managers with pending (unpaid) manager share.
+ */
+export async function exportManagerPayoutExcel(_req, res) {
+  try {
+    const pendingAgg = await ConversionRecord.aggregate([
+      {
+        $match: {
+          matchedManagerId: { $ne: null },
+          matchType: 'claimed',
+          managerPaidStatus: { $ne: true },
+          managerCommissionAmount: { $gt: 0 },
+        },
+      },
+      {
+        $group: {
+          _id: '$matchedManagerId',
+          pendingAmount: { $sum: '$managerCommissionAmount' },
+          pendingClaims: { $sum: 1 },
+        },
+      },
+      { $sort: { pendingAmount: -1 } },
+    ]);
+
+    const managerIds = pendingAgg.map((row) => row._id);
+    const managers = managerIds.length
+      ? await Manager.find({ _id: { $in: managerIds } })
+          .select('managerId fullName email mobile bankDetails')
+          .lean()
+      : [];
+    const managerMap = new Map(managers.map((m) => [String(m._id), m]));
+
+    const readyRows = [];
+    const missingRows = [];
+
+    for (const row of pendingAgg) {
+      const manager = managerMap.get(String(row._id));
+      if (!manager) continue;
+
+      const bank = serializeBankDetails(manager.bankDetails);
+      const base = {
+        managerName: manager.fullName || '',
+        managerCode: manager.managerId || '',
+        phone: manager.mobile || '',
+        email: manager.email || '',
+        pendingClaims: Number(row.pendingClaims || 0),
+        amount: Number(row.pendingAmount || 0),
+        accountHolderName: bank.accountHolderName,
+        accountNumber: bank.accountNumber,
+        ifscCode: bank.ifscCode,
+        bankName: bank.bankName,
+        narration: `Nexora manager payout ${manager.managerId || manager._id}`,
+      };
+
+      if (hasCompleteBankDetails(manager.bankDetails)) {
+        readyRows.push(base);
+      } else {
+        missingRows.push(base);
+      }
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Nexora Bizworks';
+    workbook.created = new Date();
+
+    const readySheet = workbook.addWorksheet('Bank Payout', {
+      views: [{ state: 'frozen', ySplit: 1 }],
+    });
+    readySheet.columns = [
+      { header: 'Sr No', key: 'srNo', width: 8 },
+      { header: 'Beneficiary Name', key: 'accountHolderName', width: 24 },
+      { header: 'Account Number', key: 'accountNumber', width: 20 },
+      { header: 'IFSC Code', key: 'ifscCode', width: 14 },
+      { header: 'Bank Name', key: 'bankName', width: 24 },
+      { header: 'Amount', key: 'amount', width: 12 },
+      { header: 'Payment Narration', key: 'narration', width: 34 },
+      { header: 'Manager Name', key: 'managerName', width: 22 },
+      { header: 'Manager ID', key: 'managerCode', width: 14 },
+      { header: 'Phone', key: 'phone', width: 14 },
+      { header: 'Email', key: 'email', width: 28 },
+      { header: 'Pending Claims', key: 'pendingClaims', width: 14 },
+    ];
+    stylePayoutHeader(readySheet);
+    readyRows.forEach((row, index) => {
+      readySheet.addRow({ srNo: index + 1, ...row });
+    });
+
+    const missingSheet = workbook.addWorksheet('Missing Bank Details', {
+      views: [{ state: 'frozen', ySplit: 1 }],
+    });
+    missingSheet.columns = [
+      { header: 'Sr No', key: 'srNo', width: 8 },
+      { header: 'Manager Name', key: 'managerName', width: 22 },
+      { header: 'Manager ID', key: 'managerCode', width: 14 },
+      { header: 'Phone', key: 'phone', width: 14 },
+      { header: 'Email', key: 'email', width: 28 },
+      { header: 'Pending Amount', key: 'amount', width: 14 },
+      { header: 'Pending Claims', key: 'pendingClaims', width: 14 },
+      { header: 'Bank Name', key: 'bankName', width: 20 },
+      { header: 'Account Holder', key: 'accountHolderName', width: 22 },
+      { header: 'Account Number', key: 'accountNumber', width: 18 },
+      { header: 'IFSC', key: 'ifscCode', width: 14 },
+    ];
+    stylePayoutHeader(missingSheet);
+    missingRows.forEach((row, index) => {
+      missingSheet.addRow({ srNo: index + 1, ...row });
+    });
+
+    const stamp = payoutFileStamp();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="nexora-manager-payout-${stamp}.xlsx"`
+    );
+    await workbook.xlsx.write(res);
+    return res.end();
+  } catch (error) {
+    console.error('exportManagerPayoutExcel error:', error);
+    if (res.headersSent) return;
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to export manager payout sheet',
     });
   }
 }

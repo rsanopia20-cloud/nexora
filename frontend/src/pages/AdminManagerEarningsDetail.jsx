@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
+import { BankDetailsReadOnly } from '../components/BankDetailsForm'
 import './Admin.css'
 
 function formatNumber(value) {
@@ -125,6 +126,18 @@ export default function AdminManagerEarningsDetail() {
               <span>Total pending</span>
               <strong>{formatCurrency(detail.totalPending)}</strong>
             </div>
+          </div>
+
+          <div className="admin-panel">
+            <div className="admin-panel-head">
+              <h2 className="admin-section-title">Bank details</h2>
+              <p className="admin-section-note">
+                {detail.manager?.hasBankDetails
+                  ? 'Use these details to pay this manager'
+                  : 'Manager has not added bank details yet'}
+              </p>
+            </div>
+            <BankDetailsReadOnly bankDetails={detail.manager?.bankDetails} />
           </div>
 
           <div className="admin-panel">

@@ -1,5 +1,9 @@
 import crypto from 'crypto';
 import Manager from '../models/Manager.js';
+import {
+  hasCompleteBankDetails,
+  serializeBankDetails,
+} from '../utils/bankDetails.js';
 
 function serializeManager(manager) {
   return {
@@ -10,6 +14,8 @@ function serializeManager(manager) {
     mobile: manager.mobile || '',
     active: Boolean(manager.active),
     notes: manager.notes || '',
+    bankDetails: serializeBankDetails(manager.bankDetails),
+    hasBankDetails: hasCompleteBankDetails(manager.bankDetails),
     createdAt: manager.createdAt,
     updatedAt: manager.updatedAt,
   };

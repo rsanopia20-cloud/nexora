@@ -5,6 +5,8 @@ import { requireAuth } from '../middleware/auth.js';
 import {
   claimRecord,
   editConversionRecord,
+  exportCustomerPayoutExcel,
+  exportManagerPayoutExcel,
   getCustomerEarningsDetail,
   getCustomerEarningsSummary,
   getManagerEarningsDetail,
@@ -51,9 +53,11 @@ adminUserSearchRouter.use(requireAdmin);
 router.get('/manual-batches', listManualBatches);
 router.get('/manual-batches/:batchId', getManualBatchDetail);
 router.get('/customers-summary', getCustomerEarningsSummary);
+router.get('/customers-payout-export', exportCustomerPayoutExcel);
 router.get('/customers/:userId', getCustomerEarningsDetail);
 router.put('/customers/:userId/mark-paid', markCustomerAsPaid);
 router.get('/managers-summary', getManagerEarningsSummary);
+router.get('/managers-payout-export', exportManagerPayoutExcel);
 router.get('/managers/:managerId', getManagerEarningsDetail);
 router.put('/managers/:managerId/mark-paid', markManagerAsPaid);
 router.put('/:id/edit', editConversionRecord);

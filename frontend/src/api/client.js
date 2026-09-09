@@ -88,3 +88,50 @@ export async function apiRequest(path, options = {}) {
 
   return data
 }
+
+/**
+ * Download a binary file from an admin API path (e.g. Excel export).
+ */
+export async function downloadAdminFile(path, fallbackFileName = 'download.xlsx') {
+  const token = getAdminToken()
+  const url = `${API_BASE}${path}`
+
+  let response
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    })
+  } catch {
+    throw new Error(
+      'Cannot reach the server. Check that the API is running and VITE_API_URL is set for production.'
+    )
+  }
+
+  if (!response.ok) {
+    let message = `Download failed (${response.status})`
+    try {
+      const data = await response.json()
+      if (data?.message) message = data.message
+    } catch {
+      // keep fallback
+    }
+    throw new Error(message)
+  }
+
+  const blob = await response.blob()
+  const contentDisposition = response.headers.get('content-disposition') || ''
+  const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
+  const fileName = fileNameMatch?.[1] || fallbackFileName
+
+  const objectUrl = window.URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = objectUrl
+  anchor.download = fileName
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.URL.revokeObjectURL(objectUrl)
+}
+

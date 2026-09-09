@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiRequest } from '../api/client'
+import { apiRequest, downloadAdminFile } from '../api/client'
 import AdminShell from '../components/AdminShell'
 import './Admin.css'
 
@@ -18,6 +18,7 @@ export default function AdminConversions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busyUserId, setBusyUserId] = useState('')
+  const [exportBusy, setExportBusy] = useState(false)
 
   async function loadSummary() {
     setLoading(true)
@@ -35,6 +36,21 @@ export default function AdminConversions() {
   useEffect(() => {
     loadSummary()
   }, [])
+
+  async function downloadPayoutSheet() {
+    setExportBusy(true)
+    setError('')
+    try {
+      await downloadAdminFile(
+        '/api/admin/conversions/customers-payout-export',
+        'nexora-user-payout.xlsx'
+      )
+    } catch (err) {
+      setError(err.message || 'Unable to download payout sheet')
+    } finally {
+      setExportBusy(false)
+    }
+  }
 
   async function markAllPaid(row, event) {
     event.stopPropagation()
@@ -62,10 +78,21 @@ export default function AdminConversions() {
     <AdminShell title="Customer Earnings">
       <div className="admin-page-intro">
         <h1>Customer earnings</h1>
-        <p>See exactly how much each customer has earned, been paid, and is still pending.</p>
+        <p>
+          Download the bank payout sheet for pending user earnings, then mark people as paid after
+          the bank completes transfers.
+        </p>
       </div>
 
       <div className="admin-actions" style={{ marginBottom: '1rem' }}>
+        <button
+          type="button"
+          className="admin-btn"
+          disabled={exportBusy}
+          onClick={downloadPayoutSheet}
+        >
+          {exportBusy ? 'Preparing sheet...' : 'Download Bank Payout Excel'}
+        </button>
         <Link to="/admin/conversions/upload" className="admin-btn admin-btn-ghost">
           Upload Excel
         </Link>
@@ -88,7 +115,9 @@ export default function AdminConversions() {
         <div className="admin-panel">
           <div className="admin-panel-head">
             <h2 className="admin-section-title">Customers ({formatNumber(rows.length)})</h2>
-            <p className="admin-section-note">Sorted by pending amount (highest first)</p>
+            <p className="admin-section-note">
+              Sorted by pending amount (highest first). Use Mark All Paid after bank has paid.
+            </p>
           </div>
           <div className="admin-table-wrap">
             <table className="admin-table">
@@ -132,7 +161,9 @@ export default function AdminConversions() {
                       <button
                         type="button"
                         className="admin-btn admin-btn-ghost"
-                        disabled={Number(row.totalPending || 0) <= 0 || busyUserId === String(row.userId)}
+                        disabled={
+                          Number(row.totalPending || 0) <= 0 || busyUserId === String(row.userId)
+                        }
                         onClick={(event) => markAllPaid(row, event)}
                       >
                         {busyUserId === String(row.userId) ? 'Updating...' : 'Mark All Paid'}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiRequest } from '../api/client'
+import { apiRequest, downloadAdminFile } from '../api/client'
 import AdminShell from '../components/AdminShell'
 import './Admin.css'
 
@@ -18,6 +18,7 @@ export default function AdminManagerEarnings() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busyManagerId, setBusyManagerId] = useState('')
+  const [exportBusy, setExportBusy] = useState(false)
 
   async function loadSummary() {
     setLoading(true)
@@ -35,6 +36,21 @@ export default function AdminManagerEarnings() {
   useEffect(() => {
     loadSummary()
   }, [])
+
+  async function downloadPayoutSheet() {
+    setExportBusy(true)
+    setError('')
+    try {
+      await downloadAdminFile(
+        '/api/admin/conversions/managers-payout-export',
+        'nexora-manager-payout.xlsx'
+      )
+    } catch (err) {
+      setError(err.message || 'Unable to download payout sheet')
+    } finally {
+      setExportBusy(false)
+    }
+  }
 
   async function markAllPaid(row, event) {
     event.stopPropagation()
@@ -65,12 +81,20 @@ export default function AdminManagerEarnings() {
       <div className="admin-page-intro">
         <h1>Manager earnings</h1>
         <p>
-          See how much each manager earned from user claims (30% share), and mark pending amounts
-          as paid.
+          Download the bank payout sheet for pending manager share (30%), then mark as paid after
+          the bank completes transfers.
         </p>
       </div>
 
       <div className="admin-actions" style={{ marginBottom: '1rem' }}>
+        <button
+          type="button"
+          className="admin-btn"
+          disabled={exportBusy}
+          onClick={downloadPayoutSheet}
+        >
+          {exportBusy ? 'Preparing sheet...' : 'Download Bank Payout Excel'}
+        </button>
         <Link to="/admin/conversions" className="admin-btn admin-btn-ghost">
           Customer Earnings
         </Link>
@@ -83,14 +107,18 @@ export default function AdminManagerEarnings() {
       {error ? <p className="admin-error">{error}</p> : null}
 
       {!loading && !rows.length ? (
-        <p className="admin-empty">No manager earnings yet. Earnings appear when users claim with a Manager ID.</p>
+        <p className="admin-empty">
+          No manager earnings yet. Earnings appear when users claim with a Manager ID.
+        </p>
       ) : null}
 
       {!loading && rows.length ? (
         <div className="admin-panel">
           <div className="admin-panel-head">
             <h2 className="admin-section-title">Managers ({formatNumber(rows.length)})</h2>
-            <p className="admin-section-note">Sorted by pending amount (highest first)</p>
+            <p className="admin-section-note">
+              Sorted by pending amount (highest first). Use Mark All Paid after bank has paid.
+            </p>
           </div>
           <div className="admin-table-wrap">
             <table className="admin-table">

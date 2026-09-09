@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
+import { BankDetailsReadOnly } from '../components/BankDetailsForm'
 import './Admin.css'
 
 export default function AdminManagerDetail() {
   const { managerId } = useParams()
   const [form, setForm] = useState(null)
+  const [bankDetails, setBankDetails] = useState(null)
+  const [hasBankDetails, setHasBankDetails] = useState(false)
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,6 +30,8 @@ export default function AdminManagerDetail() {
         notes: manager.notes || '',
         active: Boolean(manager.active),
       })
+      setBankDetails(manager.bankDetails || null)
+      setHasBankDetails(Boolean(manager.hasBankDetails))
     } catch (err) {
       setError(err.message || 'Failed to load manager')
       setForm(null)
@@ -98,6 +103,19 @@ export default function AdminManagerDetail() {
       {success ? <p className="admin-success">{success}</p> : null}
 
       {!loading && form ? (
+        <>
+          <div className="admin-panel" style={{ marginBottom: '1rem' }}>
+            <div className="admin-panel-head">
+              <h2 className="admin-section-title">Bank details</h2>
+              <p className="admin-section-note">
+                {hasBankDetails
+                  ? 'Payout account provided by the manager'
+                  : 'Manager has not added bank details yet'}
+              </p>
+            </div>
+            <BankDetailsReadOnly bankDetails={bankDetails} />
+          </div>
+
         <div className="admin-panel">
           <div className="admin-panel-head">
             <h2 className="admin-section-title">Edit {form.fullName || 'manager'}</h2>
@@ -188,6 +206,7 @@ export default function AdminManagerDetail() {
             </button>
           </form>
         </div>
+        </>
       ) : null}
     </AdminShell>
   )

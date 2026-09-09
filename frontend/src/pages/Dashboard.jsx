@@ -4,6 +4,7 @@ import { apiRequest } from '../api/client'
 import ConfirmDialog from '../components/ConfirmDialog'
 import DashboardFooter from '../components/DashboardFooter'
 import DashboardHeader from '../components/DashboardHeader'
+import BankDetailsForm from '../components/BankDetailsForm'
 import { useAuth } from '../context/AuthContext'
 import { consumePendingWhatsApp, peekPendingWhatsApp } from '../utils/whatsappHandoff'
 
@@ -264,7 +265,7 @@ function ClaimPanel({ onClaimed }) {
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth()
+  const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [links, setLinks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -841,6 +842,26 @@ export default function Dashboard() {
                   </div>
                 ))}
               </dl>
+
+              <div className="mt-6 border-t border-mist pt-5">
+                <h3 className="m-0 mb-1 text-[1rem] font-bold tracking-[-0.02em]">
+                  Bank details for payout
+                </h3>
+                <p className="m-0 mb-4 text-[0.88rem] leading-relaxed text-muted">
+                  Add your bank account so admin can pay your earnings. Use the exact name on your
+                  passbook.
+                </p>
+                <BankDetailsForm
+                  initialValues={user?.bankDetails}
+                  onSave={async (payload) => {
+                    await apiRequest('/api/user/bank-details', {
+                      method: 'PUT',
+                      body: JSON.stringify(payload),
+                    })
+                    await refreshUser()
+                  }}
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-4 sm:gap-5">

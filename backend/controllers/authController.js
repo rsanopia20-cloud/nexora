@@ -4,6 +4,7 @@ import { clearAuthCookie, setAuthCookie, signToken } from '../utils/token.js';
 import { generateShortTrackingUrl } from '../utils/shortCode.js';
 import { sendWelcomeEmail } from '../utils/sendWelcomeEmail.js';
 import { assignReferralCodeIfMissing } from '../utils/referralCode.js';
+import { serializeBankDetails } from '../utils/bankDetails.js';
 
 function authPayload(user, token) {
   return {
@@ -15,6 +16,7 @@ function authPayload(user, token) {
       email: user.email,
       mobile: user.mobile,
       createdAt: user.createdAt,
+      bankDetails: serializeBankDetails(user.bankDetails),
     },
   };
 }
@@ -189,6 +191,7 @@ export async function me(req, res) {
       email: req.user.email,
       mobile: req.user.mobile,
       createdAt: req.user.createdAt,
+      bankDetails: serializeBankDetails(req.user.bankDetails),
     },
   });
 }
