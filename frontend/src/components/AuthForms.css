@@ -117,10 +117,12 @@
   flex-shrink: 0;
 }
 
-.terms-check a {
+.terms-check a,
+.privacy-notice a {
   color: var(--teal);
   font-weight: 600;
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .terms-error {

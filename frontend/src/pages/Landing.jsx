@@ -449,7 +449,7 @@ export default function Landing() {
 
       <AuthModal
         open={authMode === 'signup'}
-        title="Create your account"
+        title="Affiliate Signup Form"
         subtitle="Start running performance campaigns in minutes."
         onClose={closeAuth}
       >
