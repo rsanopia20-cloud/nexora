@@ -59,6 +59,47 @@ export const signupRules = [
     }),
 ];
 
+const passwordRules = [
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ min: 8, max: 72 })
+    .withMessage('Password must be between 8 and 72 characters')
+    .matches(/[A-Za-z]/)
+    .withMessage('Password must include at least one letter')
+    .matches(/\d/)
+    .withMessage('Password must include at least one number'),
+];
+
+export const forgotPasswordRules = [
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Email is required')
+    .isEmail()
+    .withMessage('Enter a valid email address')
+    .normalizeEmail(),
+];
+
+export const resetPasswordRules = [
+  body('token')
+    .trim()
+    .notEmpty()
+    .withMessage('Reset link is invalid or has expired')
+    .matches(/^[a-f0-9]{64}$/)
+    .withMessage('Reset link is invalid or has expired'),
+  ...passwordRules,
+  body('confirmPassword')
+    .notEmpty()
+    .withMessage('Confirm password is required')
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('Passwords do not match');
+      }
+      return true;
+    }),
+];
+
 export const loginRules = [
   body('email')
     .trim()

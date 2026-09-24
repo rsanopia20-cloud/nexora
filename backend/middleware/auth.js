@@ -33,6 +33,16 @@ export async function requireAuth(req, res, next) {
       });
     }
 
+    if (user.passwordChangedAt) {
+      const changedAtSeconds = Math.floor(user.passwordChangedAt.getTime() / 1000);
+      if (typeof decoded.iat === 'number' && decoded.iat < changedAtSeconds) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session expired. Please log in again.',
+        });
+      }
+    }
+
     req.user = user;
     next();
   } catch (error) {

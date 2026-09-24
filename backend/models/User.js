@@ -32,6 +32,21 @@ const userSchema = new mongoose.Schema(
       minlength: [8, 'Password must be at least 8 characters'],
       select: false,
     },
+    passwordChangedAt: {
+      type: Date,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
+    passwordResetSentAt: {
+      type: Date,
+      select: false,
+    },
     referralCode: {
       type: String,
       trim: true,
@@ -63,6 +78,10 @@ userSchema.pre('save', async function hashPassword() {
 
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
+  // One second behind so the session issued right after this save stays valid.
+  this.passwordChangedAt = new Date(Date.now() - 1000);
+  this.passwordResetTokenHash = undefined;
+  this.passwordResetExpires = undefined;
 });
 
 userSchema.methods.comparePassword = function comparePassword(candidate) {

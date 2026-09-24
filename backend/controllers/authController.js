@@ -1,8 +1,19 @@
+import crypto from 'crypto';
 import User from '../models/User.js';
 import Link, { LINK_SORT } from '../models/Link.js';
 import { clearAuthCookie, setAuthCookie, signToken } from '../utils/token.js';
 import { generateShortTrackingUrl } from '../utils/shortCode.js';
 import { sendWelcomeEmail } from '../utils/sendWelcomeEmail.js';
+import {
+  FORGOT_PASSWORD_MESSAGE,
+  createResetToken,
+  getFrontendBaseUrl,
+  isEmailRateLimited,
+  isIpRateLimited,
+  isWithinSendCooldown,
+  sendPasswordResetEmail,
+  sendPasswordUpdatedEmail,
+} from '../utils/sendPasswordResetEmail.js';
 import { assignReferralCodeIfMissing } from '../utils/referralCode.js';
 import { serializeBankDetails } from '../utils/bankDetails.js';
 
@@ -178,6 +189,96 @@ export async function login(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to log in. Please try again.',
+    });
+  }
+}
+
+export async function forgotPassword(req, res) {
+  try {
+    const email = String(req.body.email || '').toLowerCase();
+    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+
+    if (isIpRateLimited(String(ip))) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many attempts. Please try again later.',
+      });
+    }
+
+    const user = await User.findOne({ email }).select(
+      '+password +passwordResetTokenHash +passwordResetExpires +passwordResetSentAt'
+    );
+
+    if (!user || isEmailRateLimited(email) || isWithinSendCooldown(user.passwordResetSentAt)) {
+      return res.json({
+        success: true,
+        message: FORGOT_PASSWORD_MESSAGE,
+      });
+    }
+
+    const { token, tokenHash, expiresAt } = createResetToken();
+    user.passwordResetTokenHash = tokenHash;
+    user.passwordResetExpires = expiresAt;
+    user.passwordResetSentAt = new Date();
+    await user.save();
+
+    const resetUrl = `${getFrontendBaseUrl()}/?auth=reset&token=${token}`;
+    const sent = await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
+
+    if (!sent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to send the reset email right now. Please try again.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: FORGOT_PASSWORD_MESSAGE,
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to send the reset email right now. Please try again.',
+    });
+  }
+}
+
+export async function resetPassword(req, res) {
+  try {
+    const tokenHash = crypto.createHash('sha256').update(String(req.body.token)).digest('hex');
+    const user = await User.findOne({
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpires: { $gt: new Date() },
+    }).select('+passwordResetTokenHash +passwordResetExpires');
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'This reset link is invalid or has expired. Request a new one.',
+      });
+    }
+
+    user.password = req.body.password;
+    await user.save();
+
+    sendPasswordUpdatedEmail(user.email, user.fullName).catch((err) =>
+      console.error('Password updated email failed:', err)
+    );
+
+    const token = signToken(user);
+    setAuthCookie(res, token);
+
+    return res.json({
+      ...authPayload(user, token),
+      message: 'Password updated',
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to reset password. Please try again.',
     });
   }
 }

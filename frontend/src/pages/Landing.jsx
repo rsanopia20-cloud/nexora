@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
 import BrandLogo from '../components/BrandLogo'
+import ForgotPasswordForm from '../components/ForgotPasswordForm'
 import LoginForm from '../components/LoginForm'
+import ResetPasswordForm from '../components/ResetPasswordForm'
 import ManagerLoginForm from '../components/ManagerLoginForm'
 import SignupForm from '../components/SignupForm'
 import SiteFooter from '../components/SiteFooter'
@@ -74,7 +76,7 @@ export default function Landing() {
 
   useEffect(() => {
     const auth = searchParams.get('auth')
-    if (auth === 'login' || auth === 'signup' || auth === 'manager') {
+    if (auth === 'login' || auth === 'signup' || auth === 'manager' || auth === 'forgot' || auth === 'reset') {
       setAuthMode(auth)
     }
   }, [searchParams])
@@ -89,7 +91,10 @@ export default function Landing() {
     setSearchParams({}, { replace: true })
   }
 
-  if (!loading && isAuthenticated) {
+  const resetToken = searchParams.get('token') || ''
+  const openingReset = searchParams.get('auth') === 'reset' && Boolean(resetToken)
+
+  if (!loading && isAuthenticated && !openingReset) {
     return <Navigate to="/dashboard" replace />
   }
 
@@ -435,6 +440,7 @@ export default function Landing() {
         <LoginForm
           onSwitchToSignup={() => openAuth('signup')}
           onSwitchToManager={() => openAuth('manager')}
+          onForgotPassword={() => openAuth('forgot')}
         />
       </AuthModal>
 
@@ -445,6 +451,24 @@ export default function Landing() {
         onClose={closeAuth}
       >
         <ManagerLoginForm onSwitchToUserLogin={() => openAuth('login')} />
+      </AuthModal>
+
+      <AuthModal
+        open={authMode === 'forgot'}
+        title="Reset your password"
+        subtitle="Enter the email you used to sign up."
+        onClose={closeAuth}
+      >
+        <ForgotPasswordForm onSwitchToLogin={() => openAuth('login')} />
+      </AuthModal>
+
+      <AuthModal
+        open={authMode === 'reset'}
+        title="Choose a new password"
+        subtitle="Use at least 8 characters, with a letter and a number."
+        onClose={closeAuth}
+      >
+        <ResetPasswordForm token={resetToken} onRequestNewLink={() => openAuth('forgot')} />
       </AuthModal>
 
       <AuthModal

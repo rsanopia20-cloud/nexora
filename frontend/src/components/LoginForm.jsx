@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import PasswordField from './PasswordField'
 import './AuthForms.css'
 
-export default function LoginForm({ onSwitchToSignup, onSwitchToManager }) {
+export default function LoginForm({ onSwitchToSignup, onSwitchToManager, onForgotPassword }) {
   const { login } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
@@ -83,6 +83,14 @@ export default function LoginForm({ onSwitchToSignup, onSwitchToManager }) {
           autoComplete="current-password"
           error={errors.password}
         />
+
+        {onForgotPassword ? (
+          <div className="forgot-row">
+            <button type="button" className="auth-switch-btn" onClick={onForgotPassword}>
+              Forgot password?
+            </button>
+          </div>
+        ) : null}
 
         <button className="btn btn-solid btn-block" type="submit" disabled={submitting}>
           {submitting ? 'Signing in...' : 'Log in'}

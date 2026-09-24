@@ -27,6 +27,7 @@ import Login from './pages/Login'
 import ManagerDashboard from './pages/ManagerDashboard'
 import ManagerLogin from './pages/ManagerLogin'
 import Privacy from './pages/Privacy'
+import ResetPassword from './pages/ResetPassword'
 import Services from './pages/Services'
 import Signup from './pages/Signup'
 import Terms from './pages/Terms'
@@ -46,6 +47,7 @@ function App() {
               <Route path="/services" element={<Services />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/compliance-transparency" element={<ComplianceTransparency />} />
