@@ -6,6 +6,7 @@ import MenuToggleButton from './MenuToggleButton'
 const NAV_ITEMS = [
   { id: 'overview', href: '#overview', label: 'Overview' },
   { id: 'offers', href: '#offers', label: 'My offers' },
+  { id: 'earnings', href: '#earnings', label: 'Earnings' },
   { id: 'account', href: '#account', label: 'Account' },
   { id: 'help', href: '#help', label: 'Help' },
 ]
@@ -61,7 +62,7 @@ export default function DashboardHeader({ user, onLogout }) {
       <nav
         className={`${
           menuOpen ? 'flex' : 'hidden'
-        } absolute top-[4.25rem] right-0 left-0 z-30 max-h-[calc(100dvh-4.25rem)] flex-col items-stretch gap-0 overflow-y-auto overscroll-contain border-b border-mist bg-paper/98 px-4 py-2 shadow-[0_12px_24px_rgba(11,19,32,0.08)] sm:top-header sm:max-h-[calc(100dvh-var(--spacing-header))] lg:static lg:max-h-none lg:flex lg:flex-row lg:items-center lg:justify-center lg:gap-[2.15rem] lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}
+        } absolute top-[4.25rem] right-0 left-0 z-30 max-h-[calc(100dvh-4.25rem)] flex-col items-stretch gap-0 overflow-y-auto overscroll-contain border-b border-mist bg-paper px-4 py-2 shadow-[0_12px_24px_rgba(11,19,32,0.08)] sm:top-header sm:max-h-[calc(100dvh-var(--spacing-header))] lg:static lg:max-h-none lg:flex lg:flex-row lg:items-center lg:justify-center lg:gap-6 lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none xl:gap-[2.15rem]`}
         aria-label="Dashboard"
       >
         {NAV_ITEMS.map((item) => {

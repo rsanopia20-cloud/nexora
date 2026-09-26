@@ -38,6 +38,9 @@ export default function DashboardFooter({ onLogout }) {
             <a className={linkClass} href="#offers">
               My offers
             </a>
+            <a className={linkClass} href="#earnings">
+              My earnings
+            </a>
             <a className={linkClass} href="#account">
               Account
             </a>

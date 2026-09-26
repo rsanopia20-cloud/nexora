@@ -152,9 +152,14 @@ function ClaimPanel({ onClaimed }) {
     }
   }
 
+  const fieldLabel =
+    'text-[0.72rem] font-bold uppercase tracking-[0.08em] text-muted sm:sr-only'
+  const fieldControl =
+    'h-12 w-full min-w-0 max-w-full rounded-[0.4rem] border border-mist bg-white px-3 text-base text-ink outline-none focus:border-teal sm:h-11 sm:text-[0.92rem]'
+
   return (
-    <div className="mb-5 rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
-      <h3 className="m-0 mb-1 text-[1rem] font-bold tracking-[-0.02em] sm:text-[1.05rem]">
+    <div className="mb-5 rounded-[0.45rem] border border-mist bg-white p-3.5 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
+      <h3 className="m-0 mb-1 text-[1.05rem] font-bold tracking-[-0.02em] sm:text-[1.05rem]">
         Claim your earnings
       </h3>
       <p className="m-0 mb-4 text-[0.88rem] leading-relaxed text-muted">
@@ -162,46 +167,67 @@ function ClaimPanel({ onClaimed }) {
         ID. Ready To Trade accounts can be claimed once.
       </p>
 
-      <form
-        onSubmit={handleSearch}
-        className="flex flex-col gap-2.5"
-      >
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-          <select
-            value={linkId}
-            onChange={(event) => setLinkId(event.target.value)}
-            className="h-11 rounded-[0.35rem] border border-mist bg-white px-3 text-[0.92rem] font-semibold text-ink outline-none focus:border-teal sm:max-w-[16rem]"
-          >
-            <option value="">Select a link…</option>
-            {links.map((link) => (
-              <option key={link.id} value={link.id}>
-                {link.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Full mobile number or client id"
-            className="h-11 flex-1 rounded-[0.35rem] border border-mist bg-white px-3 text-[0.92rem] text-ink outline-none focus:border-teal"
-          />
+      <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:gap-2.5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2.5">
+          <label className="flex min-w-0 flex-col gap-1.5 sm:max-w-[16rem] sm:shrink-0">
+            <span className={fieldLabel}>Campaign link</span>
+            <span className="relative block min-w-0">
+              <select
+                value={linkId}
+                onChange={(event) => setLinkId(event.target.value)}
+                className={`${fieldControl} appearance-none pr-10 font-semibold sm:w-auto sm:min-w-[12rem]`}
+              >
+                <option value="">Select a link…</option>
+                {links.map((link) => (
+                  <option key={link.id} value={link.id}>
+                    {link.name}
+                  </option>
+                ))}
+              </select>
+              <svg
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted"
+              >
+                <path
+                  fill="currentColor"
+                  d="M5.3 7.3a1 1 0 0 1 1.4 0L10 10.58l3.3-3.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.42Z"
+                />
+              </svg>
+            </span>
+          </label>
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className={fieldLabel}>Mobile or client id</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Full mobile number or client id"
+              className={fieldControl}
+            />
+          </label>
           <button
             type="submit"
             disabled={searching}
-            className="inline-flex h-11 items-center justify-center rounded-[0.35rem] bg-signal px-5 text-[0.92rem] font-semibold text-white hover:bg-signal-deep disabled:opacity-70"
+            className="inline-flex h-12 w-full shrink-0 items-center justify-center rounded-[0.4rem] bg-signal px-5 text-base font-semibold text-white hover:bg-signal-deep disabled:opacity-70 sm:h-11 sm:w-auto sm:text-[0.92rem]"
           >
             {searching ? 'Searching…' : 'Search'}
           </button>
         </div>
-        <input
-          type="text"
-          value={managerId}
-          onChange={(event) => setManagerId(event.target.value.toUpperCase())}
-          placeholder="Manager ID (required to claim)"
-          className="h-11 w-full rounded-[0.35rem] border border-mist bg-white px-3 text-[0.92rem] text-ink outline-none focus:border-teal sm:max-w-[20rem]"
-          autoComplete="off"
-        />
+        <label className="flex min-w-0 flex-col gap-1.5 rounded-[0.4rem] bg-paper px-3 py-3 sm:max-w-[20rem] sm:bg-transparent sm:p-0">
+          <span className={fieldLabel}>Manager ID</span>
+          <input
+            type="text"
+            value={managerId}
+            onChange={(event) => setManagerId(event.target.value.toUpperCase())}
+            placeholder="Manager ID (required to claim)"
+            className={fieldControl}
+            autoComplete="off"
+          />
+          <span className="text-[0.78rem] leading-snug text-muted sm:hidden">
+            Required when you claim a Ready To Trade account.
+          </span>
+        </label>
       </form>
 
       {error ? (
@@ -222,16 +248,16 @@ function ClaimPanel({ onClaimed }) {
               className="flex flex-col gap-2 rounded-[0.4rem] border border-mist bg-paper/40 p-3.5 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
-                <p className="m-0 text-[0.95rem] font-bold tracking-[-0.02em]">
+                <p className="m-0 break-words text-[0.95rem] font-bold tracking-[-0.02em]">
                   {record.clientName || 'Referred account'}
                 </p>
-                <p className="m-0 mt-0.5 text-[0.82rem] text-muted">
+                <p className="m-0 mt-0.5 break-words text-[0.82rem] text-muted">
                   {record.mobile ? `${record.mobile} · ` : ''}
                   {record.clientCode ? `${record.clientCode} · ` : ''}
                   Status: {record.appStatus || '—'}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex w-full shrink-0 items-center justify-between gap-3 border-t border-mist pt-2.5 sm:w-auto sm:justify-start sm:border-0 sm:pt-0">
                 <span className="text-[0.95rem] font-bold text-ink">
                   {formatCurrency(record.amount)}
                 </span>
@@ -240,7 +266,7 @@ function ClaimPanel({ onClaimed }) {
                     type="button"
                     onClick={() => handleClaim(record)}
                     disabled={claimingId === record.id}
-                    className="inline-flex h-9 items-center justify-center rounded-[0.35rem] bg-teal px-4 text-[0.88rem] font-semibold text-white hover:opacity-90 disabled:opacity-70"
+                    className="inline-flex h-11 min-w-[6.5rem] items-center justify-center rounded-[0.35rem] bg-teal px-4 text-[0.92rem] font-semibold text-white hover:opacity-90 disabled:opacity-70 sm:h-9 sm:min-w-0 sm:text-[0.88rem]"
                   >
                     {claimingId === record.id ? 'Claiming…' : 'Claim'}
                   </button>
@@ -409,6 +435,26 @@ export default function Dashboard() {
   }
 
   const firstName = user?.fullName?.split(/\s+/)[0] || 'there'
+  const earningStats = [
+    {
+      label: 'Total earned',
+      value: formatCurrency(earnings?.totalEarned),
+      accent: 'border-teal',
+      mark: 'bg-teal',
+    },
+    {
+      label: 'Total paid',
+      value: formatCurrency(earnings?.totalPaid),
+      accent: 'border-[#7a8b9f]',
+      mark: 'bg-[#7a8b9f]',
+    },
+    {
+      label: 'Total pending',
+      value: formatCurrency(earnings?.totalPending),
+      accent: 'border-signal',
+      mark: 'bg-signal',
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_80%_50%_at_100%_0%,rgba(26,122,109,0.1),transparent_55%),radial-gradient(ellipse_60%_40%_at_0%_100%,rgba(255,59,31,0.06),transparent_50%),var(--color-paper)] text-ink">
@@ -453,21 +499,20 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-3 sm:gap-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
                 {[
-                  { label: 'Total offers', shortLabel: 'Total', value: stats.total, accent: 'border-teal' },
-                  { label: 'Available', shortLabel: 'Available', value: stats.available, accent: 'border-signal' },
-                  { label: 'Completed', shortLabel: 'Done', value: stats.used, accent: 'border-[#7a8b9f]' },
+                  { label: 'Total offers', value: stats.total, accent: 'border-teal' },
+                  { label: 'Available', value: stats.available, accent: 'border-signal' },
+                  { label: 'Completed', value: stats.used, accent: 'border-[#7a8b9f]' },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className={`flex min-[420px]:block items-center justify-between gap-3 rounded-[0.4rem] border-t-[3px] bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)] min-[420px]:px-3 min-[420px]:py-3.5 sm:px-4 sm:py-4 ${stat.accent}`}
+                    className={`flex items-center justify-between gap-3 rounded-[0.4rem] border-t-[3px] bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)] sm:block sm:px-4 sm:py-4 ${stat.accent}`}
                   >
                     <p className="m-0 text-[0.72rem] font-bold uppercase tracking-[0.08em] text-muted sm:text-[0.75rem]">
-                      <span className="min-[420px]:hidden">{stat.shortLabel}</span>
-                      <span className="hidden min-[420px]:inline">{stat.label}</span>
+                      {stat.label}
                     </p>
-                    <p className="m-0 text-[1.35rem] font-bold tracking-[-0.03em] min-[420px]:mt-1 sm:text-[1.75rem]">
+                    <p className="m-0 text-[1.35rem] font-bold tracking-[-0.03em] sm:mt-1 sm:text-[1.75rem]">
                       {loading ? '—' : stat.value}
                     </p>
                   </div>
@@ -475,10 +520,10 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-4">
+            <div className="mt-5 grid grid-cols-1 gap-2.5 min-[480px]:grid-cols-2 sm:mt-6 sm:grid-cols-3 sm:gap-4">
               <a
                 href="#offers"
-                className="flex items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
+                className="flex min-w-0 items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.35rem] bg-teal/12 text-sm font-bold text-teal sm:h-10 sm:w-10">
                   01
@@ -490,7 +535,7 @@ export default function Dashboard() {
               </a>
               <a
                 href="#account"
-                className="flex items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
+                className="flex min-w-0 items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.35rem] bg-signal/12 text-sm font-bold text-signal sm:h-10 sm:w-10">
                   02
@@ -502,7 +547,7 @@ export default function Dashboard() {
               </a>
               <a
                 href="#earnings"
-                className="flex items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
+                className="flex min-w-0 items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.35rem] bg-teal/12 text-sm font-bold text-teal sm:h-10 sm:w-10">
                   ₹
@@ -518,7 +563,7 @@ export default function Dashboard() {
               </a>
               <a
                 href="mailto:support@nexorabizworks.com,info@nexorabizworks.com"
-                className="flex items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
+                className="flex min-w-0 items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.35rem] bg-[#0f161f]/8 text-sm font-bold text-ink sm:h-10 sm:w-10">
                   03
@@ -603,7 +648,7 @@ export default function Dashboard() {
                     className="flex flex-col rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6"
                   >
                     <div className="mb-3 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-                      <h3 className="m-0 min-w-0 text-[1.02rem] font-bold tracking-[-0.02em] sm:text-[1.15rem]">
+                      <h3 className="m-0 min-w-0 break-words text-[1.02rem] font-bold tracking-[-0.02em] sm:text-[1.15rem]">
                         {link.name}
                       </h3>
                       <span
@@ -621,7 +666,7 @@ export default function Dashboard() {
                       Destination
                     </p>
                     <p className="m-0 mb-4 min-w-0">
-                      <span className="block text-[0.92rem] font-semibold text-ink sm:text-[0.95rem]">
+                      <span className="block break-all text-[0.92rem] font-semibold text-ink sm:text-[0.95rem]">
                         {formatHost(link.destination)}
                       </span>
                       <span className="mt-1 hidden break-all font-mono text-[0.82rem] leading-relaxed text-muted sm:block">
@@ -704,106 +749,175 @@ export default function Dashboard() {
 
           {!earningsLoading && !earningsError ? (
             <>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 sm:gap-4">
-                <div className="rounded-[0.4rem] border-t-[3px] border-teal bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)]">
-                  <p className="m-0 text-[0.74rem] font-bold uppercase tracking-[0.08em] text-muted">
-                    Total earned
-                  </p>
-                  <p className="m-0 mt-1 text-[1.35rem] font-bold tracking-[-0.03em] sm:text-[1.65rem]">
-                    {formatCurrency(earnings?.totalEarned)}
-                  </p>
-                </div>
-                <div className="rounded-[0.4rem] border-t-[3px] border-[#7a8b9f] bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)]">
-                  <p className="m-0 text-[0.74rem] font-bold uppercase tracking-[0.08em] text-muted">
-                    Total paid
-                  </p>
-                  <p className="m-0 mt-1 text-[1.35rem] font-bold tracking-[-0.03em] sm:text-[1.65rem]">
-                    {formatCurrency(earnings?.totalPaid)}
-                  </p>
-                </div>
-                <div className="rounded-[0.4rem] border-t-[3px] border-signal bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)]">
-                  <p className="m-0 text-[0.74rem] font-bold uppercase tracking-[0.08em] text-muted">
-                    Total pending
-                  </p>
-                  <p className="m-0 mt-1 text-[1.35rem] font-bold tracking-[-0.03em] sm:text-[1.65rem]">
-                    {formatCurrency(earnings?.totalPending)}
-                  </p>
-                </div>
+              <div className="overflow-hidden rounded-[0.45rem] border border-mist bg-white shadow-[0_6px_20px_rgba(11,19,32,0.05)] sm:hidden">
+                {earningStats.map((stat, index) => (
+                  <div
+                    key={stat.label}
+                    className={`flex items-center justify-between gap-3 px-3.5 py-3.5 ${
+                      index ? 'border-t border-mist' : ''
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className={`h-8 w-1 shrink-0 rounded-full ${stat.mark}`} aria-hidden="true" />
+                      <p className="m-0 text-[0.75rem] font-bold uppercase tracking-[0.07em] text-muted">
+                        {stat.label}
+                      </p>
+                    </div>
+                    <p className="m-0 shrink-0 text-[1.15rem] font-bold tracking-[-0.03em]">
+                      {stat.value}
+                    </p>
+                  </div>
+                ))}
               </div>
 
-              <div className="mt-5 rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
+              <div className="hidden gap-4 sm:grid sm:grid-cols-3">
+                {earningStats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className={`rounded-[0.4rem] border-t-[3px] bg-white px-4 py-3 shadow-[0_6px_20px_rgba(11,19,32,0.05)] ${stat.accent}`}
+                  >
+                    <p className="m-0 text-[0.74rem] font-bold uppercase tracking-[0.08em] text-muted">
+                      {stat.label}
+                    </p>
+                    <p className="m-0 mt-1 text-[1.65rem] font-bold tracking-[-0.03em]">
+                      {stat.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-[0.45rem] border border-mist bg-white p-3.5 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
                 <h3 className="m-0 mb-3 text-[1rem] font-bold tracking-[-0.02em] sm:text-[1.05rem]">
                   By campaign link
                 </h3>
                 {!earnings?.byLink?.length ? (
                   <p className="m-0 text-[0.92rem] text-muted">No payable accounts yet.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-[560px] w-full border-collapse text-left text-[0.9rem]">
-                      <thead>
-                        <tr className="border-b border-mist text-[0.72rem] uppercase tracking-[0.06em] text-muted">
-                          <th className="py-2.5 pr-3">Link</th>
-                          <th className="py-2.5 pr-3">Accounts</th>
-                          <th className="py-2.5 pr-3">Earned</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {earnings.byLink.map((row) => (
-                          <tr key={String(row.linkId)} className="border-b border-mist/70">
-                            <td className="py-2.5 pr-3 font-semibold">{row.linkName || 'Unknown link'}</td>
-                            <td className="py-2.5 pr-3">{row.accountCount || 0}</td>
-                            <td className="py-2.5 pr-3">{formatCurrency(row.totalEarned)}</td>
+                  <>
+                    <ul className="m-0 flex list-none flex-col gap-2 p-0 md:hidden">
+                      {earnings.byLink.map((row) => (
+                        <li
+                          key={String(row.linkId)}
+                          className="flex items-center justify-between gap-3 rounded-[0.4rem] border border-mist bg-paper/50 px-3 py-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="m-0 break-words text-[0.92rem] font-semibold">
+                              {row.linkName || 'Unknown link'}
+                            </p>
+                            <p className="m-0 mt-0.5 text-[0.78rem] text-muted">
+                              {row.accountCount || 0}{' '}
+                              {Number(row.accountCount) === 1 ? 'account' : 'accounts'}
+                            </p>
+                          </div>
+                          <p className="m-0 shrink-0 text-[0.95rem] font-bold">
+                            {formatCurrency(row.totalEarned)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="hidden overflow-x-auto md:block">
+                      <table className="w-full border-collapse text-left text-[0.9rem]">
+                        <thead>
+                          <tr className="border-b border-mist text-[0.72rem] uppercase tracking-[0.06em] text-muted">
+                            <th className="py-2.5 pr-3">Link</th>
+                            <th className="py-2.5 pr-3">Accounts</th>
+                            <th className="py-2.5 pr-3">Earned</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {earnings.byLink.map((row) => (
+                            <tr key={String(row.linkId)} className="border-b border-mist/70">
+                              <td className="py-2.5 pr-3 font-semibold">{row.linkName || 'Unknown link'}</td>
+                              <td className="py-2.5 pr-3">{row.accountCount || 0}</td>
+                              <td className="py-2.5 pr-3">{formatCurrency(row.totalEarned)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
 
-              <div className="mt-5 rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
+              <div className="mt-5 rounded-[0.45rem] border border-mist bg-white p-3.5 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
                 <h3 className="m-0 mb-3 text-[1rem] font-bold tracking-[-0.02em] sm:text-[1.05rem]">
                   Earnings records
                 </h3>
                 {!earnings?.records?.length ? (
                   <p className="m-0 text-[0.92rem] text-muted">No payable records yet.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-[760px] w-full border-collapse text-left text-[0.9rem]">
-                      <thead>
-                        <tr className="border-b border-mist text-[0.72rem] uppercase tracking-[0.06em] text-muted">
-                          <th className="py-2.5 pr-3">Account</th>
-                          <th className="py-2.5 pr-3">App status</th>
-                          <th className="py-2.5 pr-3">Amount</th>
-                          <th className="py-2.5 pr-3">Payment</th>
-                          <th className="py-2.5 pr-3">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {earnings.records.map((record) => (
-                          <tr key={String(record.id)} className="border-b border-mist/70">
-                            <td className="py-2.5 pr-3 font-semibold">
+                  <>
+                    <ul className="m-0 flex list-none flex-col gap-2.5 p-0 md:hidden">
+                      {earnings.records.map((record) => (
+                        <li
+                          key={String(record.id)}
+                          className="rounded-[0.4rem] border border-mist bg-paper/40 p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="m-0 min-w-0 break-words text-[0.95rem] font-bold">
                               {record.clientName || 'Referred account'}
-                            </td>
-                            <td className="py-2.5 pr-3">{record.appStatus || '—'}</td>
-                            <td className="py-2.5 pr-3">{formatCurrency(record.commissionAmount)}</td>
-                            <td className="py-2.5 pr-3">
-                              <span
-                                className={`inline-flex rounded-[999px] px-2 py-0.5 text-[0.72rem] font-bold uppercase tracking-[0.05em] ${
-                                  record.paidStatus
-                                    ? 'bg-teal/12 text-teal'
-                                    : 'bg-signal/12 text-signal-deep'
-                                }`}
-                              >
-                                {record.paidStatus ? 'Paid' : 'Pending'}
-                              </span>
-                            </td>
-                            <td className="py-2.5 pr-3">{formatDate(record.createdAt)}</td>
+                            </p>
+                            <p className="m-0 shrink-0 text-[0.95rem] font-bold">
+                              {formatCurrency(record.commissionAmount)}
+                            </p>
+                          </div>
+                          <p className="m-0 mt-1 text-[0.82rem] text-muted">
+                            {record.appStatus || '—'}
+                          </p>
+                          <div className="mt-2.5 flex items-center justify-between gap-3">
+                            <span
+                              className={`inline-flex rounded-[999px] px-2 py-0.5 text-[0.72rem] font-bold uppercase tracking-[0.05em] ${
+                                record.paidStatus
+                                  ? 'bg-teal/12 text-teal'
+                                  : 'bg-signal/12 text-signal-deep'
+                              }`}
+                            >
+                              {record.paidStatus ? 'Paid' : 'Pending'}
+                            </span>
+                            <span className="text-[0.78rem] text-muted">
+                              {formatDate(record.createdAt)}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="hidden overflow-x-auto md:block">
+                      <table className="w-full min-w-[640px] border-collapse text-left text-[0.9rem]">
+                        <thead>
+                          <tr className="border-b border-mist text-[0.72rem] uppercase tracking-[0.06em] text-muted">
+                            <th className="py-2.5 pr-3">Account</th>
+                            <th className="py-2.5 pr-3">App status</th>
+                            <th className="py-2.5 pr-3">Amount</th>
+                            <th className="py-2.5 pr-3">Payment</th>
+                            <th className="py-2.5 pr-3">Date</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {earnings.records.map((record) => (
+                            <tr key={String(record.id)} className="border-b border-mist/70">
+                              <td className="py-2.5 pr-3 font-semibold">
+                                {record.clientName || 'Referred account'}
+                              </td>
+                              <td className="py-2.5 pr-3">{record.appStatus || '—'}</td>
+                              <td className="py-2.5 pr-3">{formatCurrency(record.commissionAmount)}</td>
+                              <td className="py-2.5 pr-3">
+                                <span
+                                  className={`inline-flex rounded-[999px] px-2 py-0.5 text-[0.72rem] font-bold uppercase tracking-[0.05em] ${
+                                    record.paidStatus
+                                      ? 'bg-teal/12 text-teal'
+                                      : 'bg-signal/12 text-signal-deep'
+                                  }`}
+                                >
+                                  {record.paidStatus ? 'Paid' : 'Pending'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 pr-3">{formatDate(record.createdAt)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             </>
