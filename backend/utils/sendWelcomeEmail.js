@@ -7,13 +7,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function resolveTermsPdfPath() {
-  const assetsDir = path.join(__dirname, '..', 'assets');
-  const preferred = path.join(assetsDir, 'terms-and-conditions.pdf');
-  const legacy = path.join(assetsDir, 'TERMS & CONDITIONS.pdf');
+  return path.join(__dirname, '..', 'assets', 'Nexora_Terms_and_Conditions.pdf');
+}
 
-  if (fs.existsSync(preferred)) return preferred;
-  if (fs.existsSync(legacy)) return legacy;
-  return preferred;
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatAcceptedAt(value) {
+  const date = value instanceof Date ? value : new Date(value || Date.now());
+  const when = Number.isNaN(date.getTime()) ? new Date() : date;
+
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  }).format(when);
 }
 
 /**
@@ -24,7 +43,7 @@ function resolveTermsPdfPath() {
  *
  * Never throws — failures are logged and return false so signup is not blocked.
  */
-export async function sendWelcomeEmail(toEmail, toName) {
+export async function sendWelcomeEmail(toEmail, toName, acceptedAt) {
   try {
     const apiKey = process.env.BREVO_API_KEY;
     const senderEmail = process.env.SENDER_EMAIL;
@@ -51,12 +70,15 @@ export async function sendWelcomeEmail(toEmail, toName) {
     }
 
     const pdfBase64 = fs.readFileSync(pdfPath).toString('base64');
-    const safeName = toName?.trim() || 'there';
+    const participantName = toName?.trim() || 'Participant';
+    const safeName = escapeHtml(participantName);
+    const safeEmail = escapeHtml(toEmail);
+    const acceptedOn = escapeHtml(formatAcceptedAt(acceptedAt));
 
     const brevo = new BrevoClient({ apiKey });
 
     await brevo.transactionalEmails.sendTransacEmail({
-      subject: 'Welcome! Please find our Terms & Conditions',
+      subject: 'Confirmation of your NEXORA Terms and Conditions acceptance',
       sender: {
         name: senderName,
         email: senderEmail,
@@ -64,19 +86,23 @@ export async function sendWelcomeEmail(toEmail, toName) {
       to: [
         {
           email: toEmail,
-          name: safeName,
+          name: participantName,
         },
       ],
       htmlContent: `
         <p>Hi ${safeName},</p>
-        <p>Welcome to Nexora Bizworks — thanks for signing up with us.</p>
-        <p>Please find our Terms &amp; Conditions attached as a PDF for your records.</p>
-        <p>If you have any questions, feel free to reach out through our official channels.</p>
-        <p>— Team Nexora</p>
+        <p>This is to confirm that you have read, understood and voluntarily agreed to the NEXORA Terms and Conditions.</p>
+        <p>
+          Name: ${safeName}<br>
+          Email: ${safeEmail}<br>
+          Accepted on: ${acceptedOn}
+        </p>
+        <p>A copy of the accepted Terms &amp; Conditions is attached as a PDF for your records.</p>
+        <p>Regards,<br>NEXORA / Nexora Bizworks</p>
       `,
       attachment: [
         {
-          name: 'Terms-and-Conditions.pdf',
+          name: 'Nexora_Terms_and_Conditions.pdf',
           content: pdfBase64,
         },
       ],

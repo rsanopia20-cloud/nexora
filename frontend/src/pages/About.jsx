@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
+import LogoutButton from '../components/LogoutButton'
 import SiteFooter from '../components/SiteFooter'
 import SiteHeader from '../components/SiteHeader'
+import { useAuth } from '../context/AuthContext'
 
 const FOCUS_AREAS = [
   'Promotional advertising & digital outreach',
@@ -24,6 +26,8 @@ const sectionH2 =
 const bodyP = 'm-0 mb-4 max-w-none text-[1rem] leading-relaxed text-muted sm:max-w-[44ch] sm:text-[1.02rem]'
 
 export default function About() {
+  const { isAuthenticated } = useAuth()
+
   return (
     <div className="min-h-screen bg-paper text-ink">
       <SiteHeader />
@@ -48,12 +52,16 @@ export default function About() {
               performance marketing — built for clarity, compliance, and measurable outcomes.
             </p>
             <div className="btn-stack">
-              <Link
-                to="/?auth=signup"
-                className="inline-flex h-[2.65rem] items-center justify-center rounded-[0.35rem] bg-signal px-5 text-[0.94rem] font-semibold text-white hover:bg-signal-deep"
-              >
-                Get started
-              </Link>
+              {!isAuthenticated ? (
+                <Link
+                  to="/?auth=signup"
+                  className="inline-flex h-[2.65rem] items-center justify-center rounded-[0.35rem] bg-signal px-5 text-[0.94rem] font-semibold text-white hover:bg-signal-deep"
+                >
+                  Get started
+                </Link>
+              ) : (
+                <LogoutButton className="inline-flex h-[2.65rem] items-center justify-center rounded-[0.35rem] bg-signal px-5 text-[0.94rem] font-semibold text-white hover:bg-signal-deep" />
+              )}
               <a
                 href="#vision"
                 className="inline-flex h-[2.65rem] items-center justify-center rounded-[0.35rem] border-[1.5px] border-white/55 bg-ink/20 px-5 text-[0.94rem] font-semibold text-white hover:border-white hover:bg-white/12"

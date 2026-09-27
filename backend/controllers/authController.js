@@ -120,7 +120,7 @@ export async function signup(req, res) {
     }
 
     // Fire-and-forget welcome email with T&C PDF — never block signup response.
-    sendWelcomeEmail(user.email, user.fullName).catch((err) =>
+    sendWelcomeEmail(user.email, user.fullName, user.createdAt).catch((err) =>
       console.error('Email send failed:', err)
     );
 

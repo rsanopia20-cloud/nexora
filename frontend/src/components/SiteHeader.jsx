@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import BrandLogo from './BrandLogo'
+import LogoutButton from './LogoutButton'
 import MenuToggleButton from './MenuToggleButton'
 
 export const NAV_LINKS = [
@@ -57,7 +59,9 @@ function navLinkClass(active) {
 
 export default function SiteHeader({ onOpenAuth }) {
   const location = useLocation()
+  const { isAuthenticated } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const showGuestAuth = !(location.pathname === '/about' && isAuthenticated)
 
   useEffect(() => {
     document.body.classList.toggle('nav-open', menuOpen)
@@ -127,6 +131,7 @@ export default function SiteHeader({ onOpenAuth }) {
           )
         })}
 
+        {showGuestAuth ? (
         <div className="grid grid-cols-1 gap-2.5 pt-3.5 sm:grid-cols-2 lg:hidden">
           {onOpenAuth ? (
             <>
@@ -164,9 +169,18 @@ export default function SiteHeader({ onOpenAuth }) {
             </>
           )}
         </div>
+        ) : (
+        <div className="pt-3.5 lg:hidden">
+          <LogoutButton
+            onBeforeOpen={closeMenu}
+            className={`${btnSolid} h-11 w-full`}
+          />
+        </div>
+        )}
       </nav>
 
       <div className="flex items-center justify-end gap-2 sm:gap-3.5">
+        {showGuestAuth ? (
         <nav className="hidden items-center gap-2 sm:gap-3 lg:flex" aria-label="Account">
           {onOpenAuth ? (
             <>
@@ -195,6 +209,9 @@ export default function SiteHeader({ onOpenAuth }) {
             </>
           )}
         </nav>
+        ) : (
+        <LogoutButton className="hidden h-10 min-h-10 items-center justify-center rounded-[0.4rem] bg-signal px-4.5 text-[0.92rem] font-semibold text-white hover:bg-signal-deep lg:inline-flex" />
+        )}
         <MenuToggleButton
           open={menuOpen}
           className="lg:hidden"

@@ -22,6 +22,7 @@ import AdminUsers from './pages/AdminUsers'
 import AdminManualBatches from './pages/AdminManualBatches'
 import AdminManualBatchReview from './pages/AdminManualBatchReview'
 import Dashboard from './pages/Dashboard'
+import Profile from './pages/Profile'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import ManagerDashboard from './pages/ManagerDashboard'
@@ -56,6 +57,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

@@ -180,10 +180,11 @@ export default function SignupForm({ onSwitchToLogin }) {
             disabled={submitting}
           />
           <span>
-            I accept the{' '}
+            I have read, understood and voluntarily agree to the NEXORA{' '}
             <a href="/terms" target="_blank" rel="noreferrer">
-              Terms and Conditions
+              Terms &amp; Conditions
             </a>
+            .
           </span>
         </label>
         {errors.acceptedTerms ? <em className="terms-error">{errors.acceptedTerms}</em> : null}

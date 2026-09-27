@@ -1,5 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import BrandLogo from './BrandLogo'
+import LogoutButton from './LogoutButton'
 
 const linkClass =
   'text-[0.95rem] font-semibold leading-snug text-[#d5deea] break-anywhere hover:text-white'
@@ -7,6 +9,10 @@ const colTitleClass =
   'mb-1.5 font-display text-[0.8rem] font-bold uppercase tracking-[0.08em] text-[#6f8298]'
 
 export default function SiteFooter({ onOpenAuth }) {
+  const location = useLocation()
+  const { isAuthenticated } = useAuth()
+  const showGuestAuth = !(location.pathname === '/about' && isAuthenticated)
+
   function handleAuth(mode) {
     if (typeof onOpenAuth === 'function') {
       onOpenAuth(mode)
@@ -27,7 +33,7 @@ export default function SiteFooter({ onOpenAuth }) {
             <p className="mt-3.5 mb-5 text-[0.92rem] leading-relaxed text-[#9aabbd] sm:mt-4 sm:text-[0.95rem]">
               Performance marketing built on clarity, ethics, and measurable growth.
             </p>
-            {onOpenAuth ? (
+            {showGuestAuth && onOpenAuth ? (
               <button
                 type="button"
                 className="inline-flex h-[2.45rem] w-full items-center justify-center rounded-[0.4rem] bg-signal px-4.5 text-[0.92rem] font-semibold text-white transition-colors hover:bg-signal-deep sm:w-auto"
@@ -35,14 +41,18 @@ export default function SiteFooter({ onOpenAuth }) {
               >
                 Get started
               </button>
-            ) : (
+            ) : null}
+            {showGuestAuth && !onOpenAuth ? (
               <Link
                 to="/?auth=signup"
                 className="inline-flex h-[2.45rem] w-full items-center justify-center rounded-[0.4rem] bg-signal px-4.5 text-[0.92rem] font-semibold text-white transition-colors hover:bg-signal-deep sm:w-auto"
               >
                 Get started
               </Link>
-            )}
+            ) : null}
+            {!showGuestAuth ? (
+              <LogoutButton className="inline-flex h-[2.45rem] w-full items-center justify-center rounded-[0.4rem] bg-signal px-4.5 text-[0.92rem] font-semibold text-white transition-colors hover:bg-signal-deep sm:w-auto" />
+            ) : null}
           </div>
 
           <div className="flex flex-col items-start gap-2.5">
@@ -66,7 +76,7 @@ export default function SiteFooter({ onOpenAuth }) {
 
           <div className="flex flex-col items-start gap-2.5">
             <h3 className={colTitleClass}>Account</h3>
-            {onOpenAuth ? (
+            {showGuestAuth && onOpenAuth ? (
               <>
                 <button type="button" className={`${linkClass} border-0 bg-transparent p-0 text-left`} onClick={() => handleAuth('login')}>
                   Log in
@@ -75,7 +85,8 @@ export default function SiteFooter({ onOpenAuth }) {
                   Sign up
                 </button>
               </>
-            ) : (
+            ) : null}
+            {showGuestAuth && !onOpenAuth ? (
               <>
                 <Link className={linkClass} to="/?auth=login">
                   Log in
@@ -84,7 +95,10 @@ export default function SiteFooter({ onOpenAuth }) {
                   Sign up
                 </Link>
               </>
-            )}
+            ) : null}
+            {!showGuestAuth ? (
+              <LogoutButton className={`${linkClass} border-0 bg-transparent p-0 text-left`} />
+            ) : null}
             <Link className={linkClass} to="/terms">
               Terms &amp; Conditions
             </Link>

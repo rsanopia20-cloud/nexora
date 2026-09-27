@@ -4,11 +4,11 @@ import BrandLogo from './BrandLogo'
 import MenuToggleButton from './MenuToggleButton'
 
 const NAV_ITEMS = [
-  { id: 'overview', href: '#overview', label: 'Overview' },
-  { id: 'offers', href: '#offers', label: 'My offers' },
-  { id: 'earnings', href: '#earnings', label: 'Earnings' },
-  { id: 'account', href: '#account', label: 'Account' },
-  { id: 'help', href: '#help', label: 'Help' },
+  { id: 'overview', href: '/dashboard#overview', label: 'Overview' },
+  { id: 'offers', href: '/dashboard#offers', label: 'My offers' },
+  { id: 'earnings', href: '/dashboard#earnings', label: 'Earnings' },
+  { id: 'profile', href: '/profile', label: 'Profile' },
+  { id: 'help', href: '/dashboard#help', label: 'Help' },
 ]
 
 function navLinkClass(active) {
@@ -66,16 +66,21 @@ export default function DashboardHeader({ user, onLogout }) {
         aria-label="Dashboard"
       >
         {NAV_ITEMS.map((item) => {
-          const active = activeHash === item.href || (!activeHash && item.id === 'overview')
+          const onProfile = location.pathname === '/profile'
+          const active =
+            item.id === 'profile'
+              ? onProfile
+              : !onProfile &&
+                (activeHash === `#${item.id}` || (!activeHash && item.id === 'overview'))
           return (
-            <a
+            <Link
               key={item.id}
-              href={item.href}
+              to={item.href}
               onClick={closeMenu}
               className={navLinkClass(active)}
             >
               {item.label}
-            </a>
+            </Link>
           )
         })}
 

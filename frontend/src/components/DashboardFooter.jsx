@@ -32,21 +32,21 @@ export default function DashboardFooter({ onLogout }) {
 
           <div className="flex flex-col items-start gap-2.5">
             <h3 className={colTitleClass}>Dashboard</h3>
-            <a className={linkClass} href="#overview">
+            <Link className={linkClass} to="/dashboard#overview">
               Overview
-            </a>
-            <a className={linkClass} href="#offers">
+            </Link>
+            <Link className={linkClass} to="/dashboard#offers">
               My offers
-            </a>
-            <a className={linkClass} href="#earnings">
+            </Link>
+            <Link className={linkClass} to="/dashboard#earnings">
               My earnings
-            </a>
-            <a className={linkClass} href="#account">
-              Account
-            </a>
-            <a className={linkClass} href="#help">
+            </Link>
+            <Link className={linkClass} to="/profile">
+              Profile
+            </Link>
+            <Link className={linkClass} to="/dashboard#help">
               Help &amp; guidelines
-            </a>
+            </Link>
           </div>
 
           <div className="flex flex-col items-start gap-2.5">

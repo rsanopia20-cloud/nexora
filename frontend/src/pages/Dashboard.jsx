@@ -4,7 +4,6 @@ import { apiRequest } from '../api/client'
 import ConfirmDialog from '../components/ConfirmDialog'
 import DashboardFooter from '../components/DashboardFooter'
 import DashboardHeader from '../components/DashboardHeader'
-import BankDetailsForm from '../components/BankDetailsForm'
 import { useAuth } from '../context/AuthContext'
 import { consumePendingWhatsApp, peekPendingWhatsApp } from '../utils/whatsappHandoff'
 
@@ -291,7 +290,7 @@ function ClaimPanel({ onClaimed }) {
 }
 
 export default function Dashboard() {
-  const { user, logout, refreshUser } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [links, setLinks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -533,18 +532,18 @@ export default function Dashboard() {
                   <p className="m-0 text-[0.82rem] text-muted sm:text-[0.85rem]">Open active campaigns</p>
                 </div>
               </a>
-              <a
-                href="#account"
+              <Link
+                to="/profile"
                 className="flex min-w-0 items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.35rem] bg-signal/12 text-sm font-bold text-signal sm:h-10 sm:w-10">
                   02
                 </span>
                 <div className="min-w-0">
-                  <p className="m-0 text-[0.92rem] font-bold tracking-[-0.02em] sm:text-[0.95rem]">Your account</p>
-                  <p className="m-0 text-[0.82rem] text-muted sm:text-[0.85rem]">Profile &amp; registration details</p>
+                  <p className="m-0 text-[0.92rem] font-bold tracking-[-0.02em] sm:text-[0.95rem]">Your profile</p>
+                  <p className="m-0 text-[0.82rem] text-muted sm:text-[0.85rem]">View and update your details</p>
                 </div>
-              </a>
+              </Link>
               <a
                 href="#earnings"
                 className="flex min-w-0 items-center gap-3 rounded-[0.4rem] border border-mist bg-white p-3.5 shadow-[0_4px_16px_rgba(11,19,32,0.04)] transition-colors hover:border-teal/40 sm:p-4"
@@ -922,90 +921,6 @@ export default function Dashboard() {
               </div>
             </>
           ) : null}
-        </section>
-
-        {/* Account */}
-        <section
-          id="account"
-          className="scroll-anchor page-x py-[clamp(2rem,6vh,5rem)] mx-auto max-w-[1160px]"
-          aria-labelledby="account-heading"
-        >
-          <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-[1fr_0.9fr] lg:gap-10">
-            <div className="rounded-[0.45rem] border border-mist bg-white p-4 shadow-[0_6px_24px_rgba(11,19,32,0.05)] sm:p-6">
-              <p className={eyebrow}>Your profile</p>
-              <h2
-                id="account-heading"
-                className="m-0 mb-5 text-[clamp(1.25rem,4vw,1.85rem)] font-bold tracking-[-0.03em] sm:font-extrabold"
-              >
-                Account details
-              </h2>
-              <dl className="m-0 grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4">
-                {[
-                  { label: 'Full name', value: user?.fullName },
-                  { label: 'Email', value: user?.email },
-                  { label: 'Mobile', value: user?.mobile },
-                  { label: 'Member since', value: formatDate(user?.createdAt) },
-                ].map((field) => (
-                  <div key={field.label} className="border-t border-mist pt-3.5">
-                    <dt className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-muted">
-                      {field.label}
-                    </dt>
-                    <dd className="m-0 mt-1 break-all text-[0.98rem] font-semibold text-ink">
-                      {field.value || '—'}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-
-              <div className="mt-6 border-t border-mist pt-5">
-                <h3 className="m-0 mb-1 text-[1rem] font-bold tracking-[-0.02em]">
-                  Bank details for payout
-                </h3>
-                <p className="m-0 mb-4 text-[0.88rem] leading-relaxed text-muted">
-                  Add your bank account so admin can pay your earnings. Use the exact name on your
-                  passbook.
-                </p>
-                <BankDetailsForm
-                  initialValues={user?.bankDetails}
-                  onSave={async (payload) => {
-                    await apiRequest('/api/user/bank-details', {
-                      method: 'PUT',
-                      body: JSON.stringify(payload),
-                    })
-                    await refreshUser()
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 sm:gap-5">
-              <div className="rounded-[0.45rem] border-t-[3px] border-teal bg-[#0f161f] p-4 text-[#e8edf4] sm:p-6">
-                <p className={`${eyebrow} text-[#8fd4c8]`}>Account status</p>
-                <p className="m-0 mb-2 text-[1.02rem] font-bold tracking-[-0.02em] sm:text-[1.1rem]">
-                  Active participant
-                </p>
-                <p className="m-0 text-[0.9rem] leading-relaxed text-[#9aabbd] sm:text-[0.92rem]">
-                  Your registration is complete. Campaign activity is logged against this account for
-                  compliance and one-time offer redemption.
-                </p>
-              </div>
-              <div className="rounded-[0.45rem] border border-mist bg-white p-4 sm:p-6">
-                <p className="m-0 mb-2 text-[0.92rem] font-bold tracking-[-0.02em] sm:text-[0.95rem]">
-                  Legal &amp; compliance
-                </p>
-                <p className="m-0 mb-4 text-[0.9rem] leading-relaxed text-muted sm:text-[0.92rem]">
-                  Review the Terms &amp; Conditions you accepted at signup for campaign rules,
-                  eligibility, and payment policies.
-                </p>
-                <Link
-                  to="/terms"
-                  className="inline-flex min-h-10 w-full items-center font-bold text-teal hover:underline sm:w-auto"
-                >
-                  Read Terms &amp; Conditions →
-                </Link>
-              </div>
-            </div>
-          </div>
         </section>
 
         {/* Help */}
