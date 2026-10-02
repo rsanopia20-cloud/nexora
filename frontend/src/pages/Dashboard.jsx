@@ -306,19 +306,16 @@ export default function Dashboard() {
   const [earningsError, setEarningsError] = useState('')
 
   useEffect(() => {
-    // Peek only — React Strict Mode remounts this effect and would otherwise
-    // delete the URL on the first run, then cancel the redirect timer.
+    // Fallback only: older signup flow stashed a WA link and sent users here first.
+    // New signups open WhatsApp immediately from SignupForm.
     const waLink = peekPendingWhatsApp()
     if (!waLink) return undefined
 
     setWhatsappHandoff(true)
     setWhatsappUrl(waLink)
-    const timer = window.setTimeout(() => {
-      consumePendingWhatsApp()
-      window.location.assign(waLink)
-    }, 600)
-
-    return () => window.clearTimeout(timer)
+    consumePendingWhatsApp()
+    window.location.assign(waLink)
+    return undefined
   }, [])
 
   const loadEarnings = useCallback(async () => {

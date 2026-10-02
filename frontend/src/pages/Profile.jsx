@@ -14,7 +14,7 @@ const editButtonClass =
   'inline-flex h-10 shrink-0 items-center justify-center rounded-[0.35rem] border border-mist bg-white px-4 text-[0.9rem] font-semibold text-ink hover:border-teal'
 
 function formatDate(value) {
-  if (!value) return '—'
+  if (!value) return 'ï¿½'
   try {
     return new Intl.DateTimeFormat('en-IN', {
       day: 'numeric',
@@ -22,7 +22,7 @@ function formatDate(value) {
       year: 'numeric',
     }).format(new Date(value))
   } catch {
-    return '—'
+    return 'ï¿½'
   }
 }
 
@@ -70,7 +70,7 @@ function DetailList({ items }) {
             {field.label}
           </dt>
           <dd className="m-0 mt-1 break-all text-[0.98rem] font-semibold text-ink">
-            {field.value || '—'}
+            {field.value || 'ï¿½'}
           </dd>
         </div>
       ))}
@@ -237,7 +237,7 @@ export default function Profile() {
 
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <button type="submit" className="btn btn-solid btn-block" disabled={saving}>
-                      {saving ? 'Saving…' : 'Save profile'}
+                      {saving ? 'Savingï¿½' : 'Save profile'}
                     </button>
                     <button
                       type="button"

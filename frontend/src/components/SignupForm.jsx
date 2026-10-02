@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { stashPendingWhatsApp } from '../utils/whatsappHandoff'
 import PasswordField from './PasswordField'
 import './AuthForms.css'
 
@@ -82,7 +81,15 @@ export default function SignupForm({ onSwitchToLogin }) {
         confirmPassword: form.confirmPassword,
       })
 
-      stashPendingWhatsApp(data.waLink)
+      // User is already signed in (token set) and welcome email is already
+      // firing on the server. Go straight to WhatsApp — do not open dashboard first.
+      if (data.waLink) {
+        // Back from WhatsApp should land on dashboard, not the signup modal.
+        window.history.replaceState(null, '', '/dashboard')
+        window.location.assign(data.waLink)
+        return
+      }
+
       navigate('/dashboard', { replace: true })
     } catch (error) {
       const fieldErrors = {}
