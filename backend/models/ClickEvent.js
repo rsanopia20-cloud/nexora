@@ -4,12 +4,10 @@ import mongoose from 'mongoose';
  * ClickEvent — append-only history of EVERY tracking-link click attempt.
  *
  * Kept separate from LinkUsage on purpose:
- * - ClickEvent = full analytics trail (who clicked, when, IP/UA, including
- *   repeats and blocked second attempts).
- * - LinkUsage = only the first successful redeem (one-time enforcement).
+ * - ClickEvent = full analytics trail (who clicked, when, IP/UA, including repeats).
+ * - LinkUsage = first-use marker for analytics only (does not block later clicks).
  *
- * Analytics later can count total attempts, unique users, etc. from this
- * collection without conflating it with "was this click allowed?" logic.
+ * Analytics can count total attempts, unique users, etc. from these collections.
  */
 const clickEventSchema = new mongoose.Schema(
   {

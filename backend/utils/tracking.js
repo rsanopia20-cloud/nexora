@@ -23,7 +23,7 @@ function computeSignature(linkId, userId) {
 }
 
 /**
- * Builds a signed one-time tracking URL for a (link, user) pair.
+ * Builds a signed tracking URL for a (link, user) pair.
  * Format: `${publicBase}/t/${linkId}.${userId}.${signature}`
  */
 export function generateTrackingUrl(linkId, userId) {

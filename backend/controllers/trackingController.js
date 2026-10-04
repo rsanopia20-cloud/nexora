@@ -39,14 +39,16 @@ function appendReferralUtm(destination, referralCode) {
 }
 
 /**
- * Shared one-time-click + analytics core used by:
+ * Shared click + analytics core used by:
  * - legacy /t/:token (HMAC redirect)
  * - new /l/:code (short-code redirect)
  * - authenticated POST /api/links/click (JSON)
  *
- * Always logs a ClickEvent attempt. Enforces one successful redeem via LinkUsage.
+ * Always logs a ClickEvent attempt. Always redirects to the destination on
+ * every click (repeats allowed). LinkUsage still records first use only, for
+ * analytics ("was used" / unique users) — it no longer blocks later clicks.
  *
- * @returns {Promise<{ status: 'already_used' } | { status: 'ok', destination: string } | { status: 'unavailable' }>}
+ * @returns {Promise<{ status: 'ok', destination: string } | { status: 'unavailable' }>}
  */
 export async function processClickAttempt(linkId, userId, req) {
   // Log every attempt (including repeats). Never block the flow on this.
@@ -62,26 +64,19 @@ export async function processClickAttempt(linkId, userId, req) {
   }
 
   try {
-    const alreadyUsed = await LinkUsage.findOne({ linkId, userId });
-
-    if (alreadyUsed) {
-      return { status: 'already_used' };
-    }
-
-    try {
-      await LinkUsage.create({ linkId, userId });
-    } catch (error) {
-      // Duplicate key (11000) = race: another request redeemed first
-      if (error?.code === 11000) {
-        return { status: 'already_used' };
-      }
-      throw error;
-    }
-
     const link = await Link.findById(linkId);
 
     if (!link || !link.active) {
       return { status: 'unavailable' };
+    }
+
+    // First-use marker for analytics only — duplicates are ignored.
+    try {
+      await LinkUsage.create({ linkId, userId });
+    } catch (error) {
+      if (error?.code !== 11000) {
+        throw error;
+      }
     }
 
     // Callers (/t/:token, /l/:code, POST /api/links/click) only pass userId —
@@ -183,10 +178,6 @@ export async function handleAuthenticatedClick(req, res) {
     }
 
     const result = await processClickAttempt(linkId, userId, req);
-
-    if (result.status === 'already_used') {
-      return res.status(200).json({ alreadyUsed: true });
-    }
 
     if (result.status === 'ok') {
       return res.status(200).json({

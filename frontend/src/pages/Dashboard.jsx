@@ -397,24 +397,16 @@ export default function Dashboard() {
         body: JSON.stringify({ linkId }),
       })
 
-      if (data.alreadyUsed) {
-        setLinkMessages((prev) => ({
-          ...prev,
-          [linkId]: "You've already used this offer on your account.",
-        }))
-        setLinks((prev) =>
-          prev.map((item) =>
-            item.linkId === linkId ? { ...item, wasUsed: true } : item
-          )
-        )
-        return
-      }
-
       if (data.destination) {
         setLinks((prev) =>
           prev.map((item) =>
             item.linkId === linkId
-              ? { ...item, wasUsed: true, usedAt: new Date().toISOString() }
+              ? {
+                  ...item,
+                  wasUsed: true,
+                  usedAt: item.usedAt || new Date().toISOString(),
+                  attempts: Number(item.attempts || 0) + 1,
+                }
               : item
           )
         )
@@ -683,18 +675,14 @@ export default function Dashboard() {
                     <div className="mt-auto pt-1">
                       <button
                         type="button"
-                        className={`inline-flex h-11 w-full items-center justify-center rounded-[0.35rem] text-[0.94rem] font-semibold ${
-                          isUsed
-                            ? 'cursor-not-allowed border border-mist bg-[#eef1f5] text-muted'
-                            : 'bg-signal text-white hover:bg-signal-deep disabled:opacity-70'
-                        }`}
-                        disabled={isUsed || clickingId === link.linkId}
+                        className="inline-flex h-11 w-full items-center justify-center rounded-[0.35rem] bg-signal text-[0.94rem] font-semibold text-white hover:bg-signal-deep disabled:opacity-70"
+                        disabled={clickingId === link.linkId}
                         onClick={() => handleLinkClick(link)}
                       >
                         {clickingId === link.linkId
                           ? 'Opening…'
                           : isUsed
-                            ? 'Already opened'
+                            ? 'Open again'
                             : 'Open offer'}
                       </button>
                     </div>

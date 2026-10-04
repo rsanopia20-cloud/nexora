@@ -347,7 +347,7 @@ async function main() {
   }
 
   if (!blocked) {
-    await runStep(4, 'Testing /api/links and one-time click enforcement for User A', async () => {
+    await runStep(4, 'Testing /api/links and repeatable click redirects for User A', async () => {
       const userAClient = makeHttpClient(context.userA.token);
       const linksData = await requestOrThrow(userAClient, {
         method: 'GET',
@@ -365,23 +365,20 @@ async function main() {
         url: '/api/links/click',
         data: { linkId: context.link.id },
       });
-      if (firstClick.alreadyUsed !== false) {
-        throw new Error(`Expected first click alreadyUsed=false, got ${JSON.stringify(firstClick)}`);
-      }
       if (!String(firstClick.destination || '').includes('https://example.com/test-destination')) {
         throw new Error(`Unexpected first click destination: ${firstClick.destination}`);
       }
-      console.log('✓ First click accepted (alreadyUsed: false)');
+      console.log('✓ First click returns destination');
 
       const secondClick = await requestOrThrow(userAClient, {
         method: 'POST',
         url: '/api/links/click',
         data: { linkId: context.link.id },
       });
-      if (secondClick.alreadyUsed !== true) {
-        throw new Error(`Expected second click alreadyUsed=true, got ${JSON.stringify(secondClick)}`);
+      if (!String(secondClick.destination || '').includes('https://example.com/test-destination')) {
+        throw new Error(`Unexpected second click destination: ${secondClick.destination}`);
       }
-      console.log('✓ Second click blocked (alreadyUsed: true)');
+      console.log('✓ Second click still returns destination (repeats allowed)');
     });
   }
 

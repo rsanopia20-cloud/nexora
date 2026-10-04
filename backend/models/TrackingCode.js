@@ -3,8 +3,7 @@ import mongoose from 'mongoose';
 /**
  * TrackingCode — maps a short public code (e.g. "aB3xY9") to a (linkId, userId)
  * pair so WhatsApp can show friendly URLs like /l/aB3xY9 instead of long
- * signed tokens. One-time click enforcement remains on LinkUsage; this model
- * is only the short-code → identity lookup table.
+ * signed tokens. This model is only the short-code → identity lookup table.
  */
 const trackingCodeSchema = new mongoose.Schema(
   {

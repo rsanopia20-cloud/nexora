@@ -325,7 +325,7 @@ export default function Profile() {
                 </p>
                 <p className="m-0 text-[0.9rem] leading-relaxed text-[#9aabbd] sm:text-[0.92rem]">
                   Your registration is complete. Campaign activity is logged against this account for
-                  compliance and one-time offer redemption.
+                  compliance and offer tracking.
                 </p>
               </div>
               <div className="rounded-[0.45rem] border border-mist bg-white p-4 sm:p-6">

@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 /**
  * Link — admin-managed destination URLs that get turned into per-user
  * tracking links after signup. These are a fixed pool (not created per user);
- * each user later receives signed /t/{linkId}.{userId}.{signature} URLs that
- * redirect here on first valid click.
+ * each user later receives short /l/{code} (or legacy signed) URLs that
+ * redirect here on every click.
  */
 const linkSchema = new mongoose.Schema(
   {
