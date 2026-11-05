@@ -106,7 +106,7 @@ export default function AdminConversionUpload() {
         <h1>Upload broker MIS Excel</h1>
         <p>
           Upload the broker sheet for a link. Any columns are fine — it&apos;s imported as-is.
-          Users then claim their own Ready To Trade accounts by phone number or client id.
+          Users then claim their own accounts by phone number or client id.
         </p>
       </div>
 

@@ -52,7 +52,7 @@ export default function AdminManualBatches() {
         <h1>Manual Excel reviews</h1>
         <p>
           Sheets uploaded in Manual mode. Open a batch to view every column as in Excel and see
-          which accounts users have claimed. Users claim their own Ready To Trade accounts.
+          which accounts users have claimed. Users claim their own accounts.
         </p>
       </div>
 

@@ -3,12 +3,9 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import Link, { LINK_SORT } from '../models/Link.js';
 import User from '../models/User.js';
-import Settings from '../models/Settings.js';
 import UploadBatch from '../models/UploadBatch.js';
 import ConversionRecord from '../models/ConversionRecord.js';
 import {
-  evaluateMatch,
-  isPayableAppStatus,
   mobilesMatch,
   normalizeMobileLast10,
   splitCommission,
@@ -42,6 +39,23 @@ function pickFlexibleField(row, aliases) {
   }
   return '';
 }
+
+/** Broker sheets use different phone headers. HDFC Sky exports the column as "Numbe". */
+const MOBILE_HEADER_ALIASES = [
+  'Mobile',
+  'Mobile No',
+  'Mobile Number',
+  'Phone',
+  'Phone No',
+  'Phone Number',
+  'Contact',
+  'Contact No',
+  'Contact Number',
+  'Mob No',
+  'Registered Mobile',
+  'Number',
+  'Numbe',
+];
 
 function collectExcelColumns(rows) {
   const seen = new Set();
@@ -273,14 +287,7 @@ async function uploadManualConversionExcel({ req, res, link, rows }) {
         'Customer Name',
         'CustomerName',
       ]);
-      const mobile = pickFlexibleField(rawData, [
-        'Mobile',
-        'Mobile No',
-        'Mobile Number',
-        'Phone',
-        'Phone Number',
-        'Contact',
-      ]);
+      const mobile = pickFlexibleField(rawData, MOBILE_HEADER_ALIASES);
       const appStatus = pickFlexibleField(rawData, [
         'App Status',
         'AppStatus',
@@ -1475,8 +1482,8 @@ export async function listClaimLinks(_req, res) {
 
 /**
  * Exact-match search (by full mobile or client code) within one link so a user
- * can find the accounts they referred and claim the payable ones. Never returns
- * partial matches or full-sheet listings.
+ * can find the accounts they referred and claim them. Never returns partial
+ * matches or full-sheet listings. App status is not required.
  */
 export async function searchClaimableRecords(req, res) {
   try {
@@ -1521,13 +1528,11 @@ export async function searchClaimableRecords(req, res) {
       .limit(20)
       .lean();
 
-    const payableStatuses = await Settings.getPayableStatuses();
     const currentUserId = String(req.user._id);
     const userSharePreview = splitCommission(link.commissionAmount).userAmount;
 
     const mapped = records.map((record) => {
       const appStatus = String(record.appStatus || '').trim();
-      const isReady = isPayableAppStatus(appStatus, payableStatuses);
       const isSelf = mobilesMatch(record.mobile, req.user.mobile);
       const claimedById = record.matchedUserId
         ? String(record.matchedUserId._id || record.matchedUserId)
@@ -1544,8 +1549,6 @@ export async function searchClaimableRecords(req, res) {
         status = 'claimed_by_you';
       } else if (isTaken) {
         status = 'unavailable';
-      } else if (!isReady) {
-        status = 'not_ready';
       } else {
         claimable = true;
       }
@@ -1641,29 +1644,14 @@ export async function claimRecord(req, res) {
       });
     }
 
-    const payableStatuses = await Settings.getPayableStatuses();
-    const evaluation = evaluateMatch(
-      req.user,
-      link,
-      { mobile: record.mobile, appStatus: record.appStatus },
-      payableStatuses
-    );
-
-    if (evaluation.isSelfAccount) {
+    if (mobilesMatch(record.mobile, req.user.mobile)) {
       return res.status(400).json({
         success: false,
         message: 'This is your own account, so it is not eligible for a commission.',
       });
     }
 
-    if (!evaluation.isPayable) {
-      return res.status(400).json({
-        success: false,
-        message: 'This account is not Ready To Trade yet, so it cannot be claimed.',
-      });
-    }
-
-    const split = splitCommission(evaluation.commissionAmount);
+    const split = splitCommission(link.commissionAmount);
 
     // Atomic guard: only the first claim wins.
     const updated = await ConversionRecord.findOneAndUpdate(

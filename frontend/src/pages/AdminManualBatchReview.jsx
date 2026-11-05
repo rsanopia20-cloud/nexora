@@ -112,7 +112,7 @@ export default function AdminManualBatchReview() {
         <h1>{batch?.fileName || 'Manual Excel sheet'}</h1>
         <p>
           {batch
-            ? `Link: ${batch.linkName}. Uploaded rows are shown as-is. Users claim their own Ready To Trade accounts — no manual assignment needed.`
+            ? `Link: ${batch.linkName}. Uploaded rows are shown as-is. Users claim their own accounts — no manual assignment needed.`
             : 'Uploaded rows are shown as-is. Users claim their own accounts.'}
         </p>
       </div>

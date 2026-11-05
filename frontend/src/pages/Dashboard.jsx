@@ -57,7 +57,6 @@ const GUIDELINES = [
 ]
 
 const CLAIM_STATUS_LABEL = {
-  not_ready: 'Not Ready To Trade',
   unavailable: 'Already claimed',
   claimed_by_you: 'Claimed by you',
   self: 'Your own account',
@@ -163,7 +162,7 @@ function ClaimPanel({ onClaimed }) {
       </h3>
       <p className="m-0 mb-4 text-[0.88rem] leading-relaxed text-muted">
         Choose the campaign link, enter the full mobile number or client id, and enter your Manager
-        ID. Ready To Trade accounts can be claimed once.
+        ID. Matching accounts can be claimed once.
       </p>
 
       <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:gap-2.5">
@@ -224,7 +223,7 @@ function ClaimPanel({ onClaimed }) {
             autoComplete="off"
           />
           <span className="text-[0.78rem] leading-snug text-muted sm:hidden">
-            Required when you claim a Ready To Trade account.
+            Required when you claim an account.
           </span>
         </label>
       </form>
@@ -250,11 +249,11 @@ function ClaimPanel({ onClaimed }) {
                 <p className="m-0 break-words text-[0.95rem] font-bold tracking-[-0.02em]">
                   {record.clientName || 'Referred account'}
                 </p>
-                <p className="m-0 mt-0.5 break-words text-[0.82rem] text-muted">
-                  {record.mobile ? `${record.mobile} · ` : ''}
-                  {record.clientCode ? `${record.clientCode} · ` : ''}
-                  Status: {record.appStatus || '—'}
-                </p>
+                {[record.mobile, record.clientCode].filter(Boolean).length ? (
+                  <p className="m-0 mt-0.5 break-words text-[0.82rem] text-muted">
+                    {[record.mobile, record.clientCode].filter(Boolean).join(' · ')}
+                  </p>
+                ) : null}
               </div>
               <div className="flex w-full shrink-0 items-center justify-between gap-3 border-t border-mist pt-2.5 sm:w-auto sm:justify-start sm:border-0 sm:pt-0">
                 <span className="text-[0.95rem] font-bold text-ink">
