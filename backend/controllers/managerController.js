@@ -1,11 +1,13 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import Manager from '../models/Manager.js';
+import ConversionRecord from '../models/ConversionRecord.js';
 import {
   hasCompleteBankDetails,
   serializeBankDetails,
 } from '../utils/bankDetails.js';
 
-function serializeManager(manager) {
+function serializeManager(manager, claimCount = 0) {
   return {
     id: manager._id,
     managerId: manager.managerId,
@@ -14,11 +16,21 @@ function serializeManager(manager) {
     mobile: manager.mobile || '',
     active: Boolean(manager.active),
     notes: manager.notes || '',
+    claimCount,
     bankDetails: serializeBankDetails(manager.bankDetails),
     hasBankDetails: hasCompleteBankDetails(manager.bankDetails),
     createdAt: manager.createdAt,
     updatedAt: manager.updatedAt,
   };
+}
+
+async function claimCountsByManager(managerIds) {
+  if (!managerIds.length) return new Map();
+  const rows = await ConversionRecord.aggregate([
+    { $match: { matchedManagerId: { $in: managerIds } } },
+    { $group: { _id: '$matchedManagerId', claimCount: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((row) => [String(row._id), row.claimCount]));
 }
 
 function normalizeManagerId(value) {
@@ -38,11 +50,14 @@ export async function listManagers(_req, res) {
       .sort({ createdAt: -1 })
       .select('-password')
       .lean();
+    const claimCounts = await claimCountsByManager(managers.map((manager) => manager._id));
 
     return res.json({
       success: true,
       count: managers.length,
-      managers: managers.map((manager) => serializeManager(manager)),
+      managers: managers.map((manager) =>
+        serializeManager(manager, claimCounts.get(String(manager._id)) || 0)
+      ),
     });
   } catch (error) {
     console.error('listManagers error:', error);
@@ -64,9 +79,13 @@ export async function getManager(req, res) {
       });
     }
 
+    const claimCount = await ConversionRecord.countDocuments({
+      matchedManagerId: manager._id,
+    });
+
     return res.json({
       success: true,
-      manager: serializeManager(manager),
+      manager: serializeManager(manager, claimCount),
     });
   } catch (error) {
     console.error('getManager error:', error);
@@ -257,6 +276,48 @@ export async function updateManager(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to update manager',
+    });
+  }
+}
+
+/**
+ * Remove the manager login only. Claimed earnings stay on the users who claimed them.
+ */
+export async function deleteManager(req, res) {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid manager id',
+      });
+    }
+
+    const manager = await Manager.findById(id).select('managerId fullName');
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found',
+      });
+    }
+
+    const claimCount = await ConversionRecord.countDocuments({
+      matchedManagerId: manager._id,
+    });
+
+    await Manager.deleteOne({ _id: manager._id });
+
+    return res.json({
+      success: true,
+      managerId: manager.managerId,
+      fullName: manager.fullName,
+      claimCount,
+    });
+  } catch (error) {
+    console.error('deleteManager error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to delete manager',
     });
   }
 }

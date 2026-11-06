@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
+import ConfirmDialog from '../components/ConfirmDialog'
+import PasswordField from '../components/PasswordField'
 import './Admin.css'
 
 function formatDate(value) {
@@ -15,6 +17,16 @@ function formatDate(value) {
   } catch {
     return String(value)
   }
+}
+
+function deleteManagerMessage(manager) {
+  const claims = Number(manager.claimCount || 0)
+  let message = `Delete ${manager.fullName || 'this manager'} (${manager.managerId})? They will no longer be able to log in.`
+  if (claims > 0) {
+    message += ` ${claims} claimed account${claims === 1 ? '' : 's'} stay with the users who claimed them.`
+  }
+  message += ' This cannot be undone.'
+  return message
 }
 
 const EMPTY_FORM = {
@@ -37,6 +49,8 @@ export default function AdminManagers() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function loadManagers() {
     setLoading(true)
@@ -81,6 +95,24 @@ export default function AdminManagers() {
       setError(err.message || 'Failed to generate Manager ID')
     } finally {
       setSuggesting(false)
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return
+    setDeleting(true)
+    setError('')
+    setSuccess('')
+    try {
+      await apiRequest(`/api/admin/managers/${pendingDelete.id}`, { method: 'DELETE' })
+      setPendingDelete(null)
+      setSuccess('Manager deleted.')
+      await loadManagers()
+    } catch (err) {
+      setError(err.message || 'Unable to delete manager')
+      setPendingDelete(null)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -203,9 +235,7 @@ export default function AdminManagers() {
 
             <label>
               Password
-              <input
-                className="admin-search"
-                type="password"
+              <PasswordField
                 value={form.password}
                 onChange={(e) => updateField('password', e.target.value)}
                 placeholder="Min 8 characters"
@@ -292,9 +322,18 @@ export default function AdminManagers() {
                     </td>
                     <td data-label="Created">{formatDate(manager.createdAt)}</td>
                     <td data-label="Actions">
-                      <Link className="admin-btn-link" to={`/admin/managers/${manager.id}`}>
-                        Edit
-                      </Link>
+                      <div className="admin-actions">
+                        <Link className="admin-btn-link" to={`/admin/managers/${manager.id}`}>
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-danger"
+                          onClick={() => setPendingDelete(manager)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -303,6 +342,19 @@ export default function AdminManagers() {
           </div>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this manager?"
+        message={pendingDelete ? deleteManagerMessage(pendingDelete) : ''}
+        confirmLabel="Delete manager"
+        cancelLabel="Keep manager"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          if (!deleting) setPendingDelete(null)
+        }}
+      />
     </AdminShell>
   )
 }

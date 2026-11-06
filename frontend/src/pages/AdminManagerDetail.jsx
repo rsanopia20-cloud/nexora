@@ -1,12 +1,25 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { BankDetailsReadOnly } from '../components/BankDetailsForm'
+import PasswordField from '../components/PasswordField'
 import './Admin.css'
+
+function deleteManagerMessage(manager) {
+  const claims = Number(manager?.claimCount || 0)
+  let message = `Delete ${manager?.fullName || 'this manager'} (${manager?.managerId || ''})? They will no longer be able to log in.`
+  if (claims > 0) {
+    message += ` ${claims} claimed account${claims === 1 ? '' : 's'} stay with the users who claimed them.`
+  }
+  message += ' This cannot be undone.'
+  return message
+}
 
 export default function AdminManagerDetail() {
   const { managerId } = useParams()
+  const navigate = useNavigate()
   const [form, setForm] = useState(null)
   const [bankDetails, setBankDetails] = useState(null)
   const [hasBankDetails, setHasBankDetails] = useState(false)
@@ -15,6 +28,8 @@ export default function AdminManagerDetail() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   async function loadManager() {
     setLoading(true)
@@ -29,6 +44,7 @@ export default function AdminManagerDetail() {
         mobile: manager.mobile || '',
         notes: manager.notes || '',
         active: Boolean(manager.active),
+        claimCount: Number(manager.claimCount || 0),
       })
       setBankDetails(manager.bankDetails || null)
       setHasBankDetails(Boolean(manager.hasBankDetails))
@@ -80,6 +96,7 @@ export default function AdminManagerDetail() {
         mobile: data.manager.mobile || '',
         notes: data.manager.notes || '',
         active: Boolean(data.manager.active),
+        claimCount: Number(data.manager.claimCount || form.claimCount || 0),
       })
       setPassword('')
       setSuccess('Manager updated.')
@@ -90,12 +107,36 @@ export default function AdminManagerDetail() {
     }
   }
 
+  async function confirmDeleteManager() {
+    if (!form || deleting) return
+    setDeleting(true)
+    setError('')
+    try {
+      await apiRequest(`/api/admin/managers/${managerId}`, { method: 'DELETE' })
+      navigate('/admin/managers', { replace: true })
+    } catch (err) {
+      setError(err.message || 'Unable to delete manager')
+      setConfirmDelete(false)
+      setDeleting(false)
+    }
+  }
+
   return (
     <AdminShell title="Edit Manager">
       <div className="admin-actions" style={{ marginBottom: '1rem' }}>
         <Link to="/admin/managers" className="admin-btn admin-btn-ghost">
           ← Back to managers
         </Link>
+        {form ? (
+          <button
+            type="button"
+            className="admin-btn admin-btn-danger"
+            onClick={() => setConfirmDelete(true)}
+            disabled={saving || deleting}
+          >
+            Delete manager
+          </button>
+        ) : null}
       </div>
 
       {loading ? <p className="admin-loading">Loading manager...</p> : null}
@@ -170,9 +211,7 @@ export default function AdminManagerDetail() {
 
             <label>
               New password (optional)
-              <input
-                className="admin-search"
-                type="password"
+              <PasswordField
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Leave blank to keep current password"
@@ -208,6 +247,19 @@ export default function AdminManagerDetail() {
         </div>
         </>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this manager?"
+        message={form ? deleteManagerMessage(form) : ''}
+        confirmLabel="Delete manager"
+        cancelLabel="Keep manager"
+        busy={deleting}
+        onConfirm={confirmDeleteManager}
+        onCancel={() => {
+          if (!deleting) setConfirmDelete(false)
+        }}
+      />
     </AdminShell>
   )
 }
