@@ -4,7 +4,7 @@ import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { BankDetailsReadOnly } from '../components/BankDetailsForm'
-import PasswordField from '../components/PasswordField'
+import AdminPasswordField from '../components/AdminPasswordField'
 import './Admin.css'
 
 function deleteManagerMessage(manager) {
@@ -211,7 +211,7 @@ export default function AdminManagerDetail() {
 
             <label>
               New password (optional)
-              <PasswordField
+              <AdminPasswordField
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Leave blank to keep current password"

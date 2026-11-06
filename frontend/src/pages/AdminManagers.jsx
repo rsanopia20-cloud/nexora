@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
 import ConfirmDialog from '../components/ConfirmDialog'
-import PasswordField from '../components/PasswordField'
+import AdminPasswordField from '../components/AdminPasswordField'
 import './Admin.css'
 
 function formatDate(value) {
@@ -235,7 +235,7 @@ export default function AdminManagers() {
 
             <label>
               Password
-              <PasswordField
+              <AdminPasswordField
                 value={form.password}
                 onChange={(e) => updateField('password', e.target.value)}
                 placeholder="Min 8 characters"
