@@ -369,34 +369,134 @@ async function uploadManualConversionExcel({ req, res, link, rows }) {
   });
 }
 
+async function countBatchClaims(batchIds) {
+  if (!batchIds.length) return new Map();
+  const rows = await ConversionRecord.aggregate([
+    { $match: { uploadBatchId: { $in: batchIds } } },
+    {
+      $group: {
+        _id: '$uploadBatchId',
+        claimedCount: {
+          $sum: { $cond: [{ $eq: ['$matchType', 'claimed'] }, 1, 0] },
+        },
+        paidCount: {
+          $sum: { $cond: [{ $eq: ['$paidStatus', true] }, 1, 0] },
+        },
+      },
+    },
+  ]);
+  return new Map(rows.map((row) => [String(row._id), row]));
+}
+
 export async function listManualBatches(req, res) {
   try {
     const batches = await UploadBatch.find({ mode: 'manual' })
       .populate('linkId', 'name')
       .sort({ uploadedAt: -1 })
-      .limit(50)
+      .limit(200)
       .lean();
+
+    const claimCounts = await countBatchClaims(batches.map((batch) => batch._id));
 
     return res.json({
       success: true,
       count: batches.length,
-      batches: batches.map((batch) => ({
-        id: batch._id,
-        fileName: batch.fileName,
-        linkId: batch.linkId?._id || batch.linkId,
-        linkName: batch.linkId?.name || '—',
-        totalRows: batch.totalRows,
-        unmatchedCount: batch.unmatchedCount,
-        duplicateSkippedCount: batch.duplicateSkippedCount,
-        columns: batch.columns || [],
-        uploadedAt: batch.uploadedAt,
-      })),
+      batches: batches.map((batch) => {
+        const counts = claimCounts.get(String(batch._id));
+        return {
+          id: batch._id,
+          fileName: batch.fileName,
+          linkId: batch.linkId?._id || batch.linkId,
+          linkName: batch.linkId?.name || '—',
+          totalRows: batch.totalRows,
+          unmatchedCount: batch.unmatchedCount,
+          claimedCount: counts?.claimedCount || 0,
+          paidCount: counts?.paidCount || 0,
+          duplicateSkippedCount: batch.duplicateSkippedCount,
+          columns: batch.columns || [],
+          uploadedAt: batch.uploadedAt,
+        };
+      }),
     });
   } catch (error) {
     console.error('listManualBatches error:', error);
     return res.status(500).json({
       success: false,
       message: 'Unable to list manual upload batches',
+    });
+  }
+}
+
+/**
+ * Delete one uploaded sheet and only the account rows that belong to it.
+ * The campaign link is left in place. Claimed rows require confirmClaims=1
+ * so a plain delete cannot wipe earnings that users already took.
+ */
+export async function deleteManualBatch(req, res) {
+  try {
+    const { batchId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(batchId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid batch id',
+      });
+    }
+
+    const batch = await UploadBatch.findById(batchId);
+    if (!batch || batch.mode !== 'manual') {
+      return res.status(404).json({
+        success: false,
+        message: 'Uploaded sheet not found',
+      });
+    }
+
+    const counts = await countBatchClaims([batch._id]);
+    const claimedCount = counts.get(String(batch._id))?.claimedCount || 0;
+    const paidCount = counts.get(String(batch._id))?.paidCount || 0;
+    const confirmClaims = String(req.query.confirmClaims || '') === '1';
+
+    if ((claimedCount > 0 || paidCount > 0) && !confirmClaims) {
+      return res.status(409).json({
+        success: false,
+        message:
+          'This sheet has claimed accounts. Confirm the delete to remove those earnings too.',
+        claimedCount,
+        paidCount,
+      });
+    }
+
+    const session = await mongoose.startSession();
+    let deletedRows = 0;
+    try {
+      await session.withTransaction(async () => {
+        const deleted = await ConversionRecord.deleteMany({
+          uploadBatchId: batch._id,
+        }).session(session);
+        deletedRows = deleted.deletedCount || 0;
+        const removed = await UploadBatch.deleteOne({
+          _id: batch._id,
+          mode: 'manual',
+        }).session(session);
+        if (!removed.deletedCount) {
+          throw new Error('Sheet was already removed');
+        }
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    return res.json({
+      success: true,
+      fileName: batch.fileName || '',
+      deletedRows,
+      claimedCount,
+      paidCount,
+    });
+  } catch (error) {
+    console.error('deleteManualBatch error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to delete this sheet',
     });
   }
 }
@@ -443,6 +543,7 @@ export async function getManualBatchDetail(req, res) {
       Array.isArray(batch.columns) && batch.columns.length
         ? batch.columns
         : collectExcelColumns(records.map((row) => row.rawData || {}));
+    const claimCounts = (await countBatchClaims([batch._id])).get(String(batch._id));
 
     return res.json({
       success: true,
@@ -453,6 +554,8 @@ export async function getManualBatchDetail(req, res) {
         linkName: batch.linkId?.name || '—',
         totalRows: batch.totalRows,
         unmatchedCount: batch.unmatchedCount,
+        claimedCount: claimCounts?.claimedCount || 0,
+        paidCount: claimCounts?.paidCount || 0,
         duplicateSkippedCount: batch.duplicateSkippedCount,
         columns,
         uploadedAt: batch.uploadedAt,

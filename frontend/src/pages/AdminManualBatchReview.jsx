@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import AdminShell from '../components/AdminShell'
+import ConfirmDialog from '../components/ConfirmDialog'
 import './Admin.css'
 
 function formatDate(value) {
@@ -73,14 +74,33 @@ function ClaimStatusCell({ record }) {
   )
 }
 
+function deleteSheetMessage(batch) {
+  const name = batch.fileName || 'this sheet'
+  const rows = Number(batch.totalRows || 0)
+  const claimed = Number(batch.claimedCount || 0)
+  const paid = Number(batch.paidCount || 0)
+  let message = `Delete "${name}" from ${batch.linkName || 'its link'}? This removes ${rows} account${rows === 1 ? '' : 's'} from search and claim.`
+  if (claimed > 0) {
+    message += ` ${claimed} ${claimed === 1 ? 'has' : 'have'} already been claimed, so those earnings will disappear from the user and manager dashboards.`
+  }
+  if (paid > 0) {
+    message += ` ${paid} ${paid === 1 ? 'is' : 'are'} already marked paid.`
+  }
+  message += ' This cannot be undone. The campaign link itself stays.'
+  return message
+}
+
 export default function AdminManualBatchReview() {
   const { batchId } = useParams()
+  const navigate = useNavigate()
   const [batch, setBatch] = useState(null)
   const [records, setRecords] = useState([])
   const [columns, setColumns] = useState([])
   const [status, setStatus] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   async function loadBatch(nextStatus = status) {
     setLoading(true)
@@ -106,6 +126,23 @@ export default function AdminManualBatchReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchId, status])
 
+  async function confirmDeleteSheet() {
+    if (!batch || deleting) return
+    setDeleting(true)
+    setError('')
+    try {
+      await apiRequest(
+        `/api/admin/conversions/manual-batches/${batch.id}?confirmClaims=1`,
+        { method: 'DELETE' }
+      )
+      navigate('/admin/conversions/manual', { replace: true })
+    } catch (err) {
+      setError(err.message || 'Unable to delete this sheet')
+      setConfirmDelete(false)
+      setDeleting(false)
+    }
+  }
+
   return (
     <AdminShell title="Manual Sheet">
       <div className="admin-page-intro">
@@ -127,6 +164,15 @@ export default function AdminManualBatchReview() {
         <Link to="/admin/conversions" className="admin-btn admin-btn-ghost">
           Customer Earnings
         </Link>
+        {batch ? (
+          <button
+            type="button"
+            className="admin-btn admin-btn-danger"
+            onClick={() => setConfirmDelete(true)}
+          >
+            Delete sheet
+          </button>
+        ) : null}
       </div>
 
       {batch ? (
@@ -237,6 +283,19 @@ export default function AdminManualBatchReview() {
           </div>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this sheet?"
+        message={batch ? deleteSheetMessage(batch) : ''}
+        confirmLabel="Delete sheet"
+        cancelLabel="Keep sheet"
+        busy={deleting}
+        onConfirm={confirmDeleteSheet}
+        onCancel={() => {
+          if (!deleting) setConfirmDelete(false)
+        }}
+      />
     </AdminShell>
   )
 }

@@ -11,6 +11,7 @@ import {
   getCustomerEarningsSummary,
   getManagerEarningsDetail,
   getManagerEarningsSummary,
+  deleteManualBatch,
   getManualBatchDetail,
   getMyEarnings,
   listClaimLinks,
@@ -52,6 +53,7 @@ adminUserSearchRouter.use(requireAdmin);
 
 router.get('/manual-batches', listManualBatches);
 router.get('/manual-batches/:batchId', getManualBatchDetail);
+router.delete('/manual-batches/:batchId', deleteManualBatch);
 router.get('/customers-summary', getCustomerEarningsSummary);
 router.get('/customers-payout-export', exportCustomerPayoutExcel);
 router.get('/customers/:userId', getCustomerEarningsDetail);
